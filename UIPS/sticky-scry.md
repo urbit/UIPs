@@ -1,5 +1,6 @@
 ---
-title: <Sticky Scry>
+uip: 100
+title: Sticky Scry
 description: <Extend Remote Scry to Support Subscriptions>
 author: <~rovnys-ricfer>
 discussions-to: <TODO>
