@@ -1,0 +1,67 @@
+---
+title: <Persistent Nock Caching>
+description: <Persistent Runtime Caches for Nock Computations>
+author: <~rovnys-ricfer>
+discussions-to: <TODO>
+status: Draft
+type: <Standards Track>
+category: <Nock, Kernel>
+created: <2023-06-13>
+---
+
+## Abstract
+
+Modifies Hoon's `~+` rune to emit a new variant of the `%memo` Nock memoization hint that includes a path and is expected to be cached persistently, across multiple Arvo events, by the runtime.
+
+Once this new rune exists, it can replace Arvo's type-check cache for vane activations, Ames performance could be increased by memoizing its packet encoding for re-sends, and Ford could be rewritten as a pure stateless function without caching or dependency tracking.  Runtime Nock caches for the Hoon compiler and parser could also be injected during initial boot as a quickboot mechanism.
+
+## Motivation
+
+Urbit runtimes have more information about timing and memory use than Nock code, enabling better caching semantics.  Hoon's `~+` rune is useful, but its implementation in runtimes is not persistent beyond the current Arvo event -- in Vere, the cache only lives as long as the current "road" (Nock virtualization level).
+
+Complex caching and deduplication systems have emerged in various parts of Arvo that could be replaced by a persistent memoization cache in the runtime.
+
+The hint for memoization should also include a path to tell the runtime which part of the system is running this code, to enable multiple caches that are tuned differently for different kinds of computations.
+
+## Specification
+
+A new dynamic Nock hint format will be added that should be recognized by runtimes.  Written as a raw hint in Hoon, it looks like this, in a simplified Ford-like system that parses and compiles a Hoon source file:
+
+```hoon
+++  build
+  |=  [sut=vase pax=path tex=cord]
+  ^-  vase
+  ::
+  =/  =hoon
+    ~>  %memo./ford/rain  ::  cache parsing
+    (rain pax tex)
+  ::
+  =/  [=type =nock]
+    ~>  %memo./ford/mint  ::  cache compilation
+    (~(mint ut p.sut) %noun hoon.pile)
+  ::
+  [type .*(q.sut nock)]
+```
+
+The `%memo` hint informs the runtime that the enclosed Nock computation should be cached persistently, and the path indicates which cache to use.  The runtime might have the `/ford/rain` and `/ford/mint` tuned to have different eviction policies, and it might want to keep entries in those two caches with higher priority than entries in other caches.
+
+Syntax for this hint could be a modified version of the `~+` rune that includes the path for this cache:
+
+```hoon
+~+  /ford/parse
+```
+
+### Scry Referential Transparency
+
+TODO Ensure that if code is run with a scry handler, the scry handler is referentially transparent, to avoid cache lines that break Nock's functional nature.  This can be done in one of a few ways:
+- Only cache code with no scry handler.
+- Only allowing caching for code run with the kernel's scry handler (i.e. not a userspace-supplied scry handler function).
+- If there is a userspace-supplied scry handler, include that in the cache key.
+
+## Backward Compatibility
+
+Adding the new `~+` syntax will necessitate a Hoon Kelvin burn.  Since the syntax has changed, all instances of the `~+` rune will need to be replaced.  As of the time of this writing, the urbit/urbit repository contains 85 instances of the `~+` rune, so this is tractable.
+
+## Copyright
+
+Copyright and related rights waived via [CC0](../LICENSE.md).
