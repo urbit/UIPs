@@ -5,7 +5,7 @@ author: <~rovnys-ricfer>
 discussions-to: <TODO>
 status: Draft
 type: <Standards Track>
-category: <Nock, Kernel>
+category: <Nock>
 created: <2023-06-13>
 ---
 
