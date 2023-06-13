@@ -54,6 +54,8 @@ An [earlier proposal](https://gist.github.com/belisarius222/390daafc146f7c6ddd98
 
 This proposal is lighter-weight and does not introduce a session abstraction, which is often considered distasteful in Urbit circles because it introduces a generally unnecessary statefulness into the networking stack -- Ames and Fine are packet-oriented connectionless protocols, and it would be a shame to lose that.
 
+Some more background on the problem can be found here: https://gist.github.com/belisarius222/4e91c13ff42e0c9371a4d194ad2947e5
+
 ## Backward Compatibility
 
 TODO Either explicit protocol negotiation to check if a publisher supports sticky scry, or fall back to polling, possibly with a shorter re-send interval.
