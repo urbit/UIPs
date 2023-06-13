@@ -44,7 +44,9 @@ Once such a request is resolved and the driver has the scry result, the driver w
 
 ### Initialization
 
-**TODO** how does Vere learn the initial set of paths and their latest cases?  Without knowing the latest case for a path, Vere can't drop repeated requests for a future revision that would block, which could be costly.  To prevent a slow process restart, ideally the initialization would not involve one big request or set of effects from Arvo, but would be done incrementally for each new path that someone requests after a Vere restart.
+Without knowing the latest case for a path, Vere can't drop repeated requests for a future revision that would block, which could be costly, since each failing request would incur an IPC roundtrip and an Arvo activation.  One simple answer is that on process restart, Clay would emit the latest revision for all desks, Eyre would emit the latest revision for all static responses, and Gall would emit the latest revision for all paths bound by all agents.
+
+To prevent a slow process restart, ideally the initialization would not involve one big request or set of effects from Arvo, but would be done incrementally for each new path that someone requests after a Vere restart.  Such a system would need to be designed separately.
 
 ## Rationale
 
