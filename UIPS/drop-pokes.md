@@ -1,0 +1,40 @@
+---
+title: <Drop Pokes to Dead Agents>
+description: <Fix a DoS Vector in Gall>
+author: <~rovnys-ricfer>
+discussions-to: <TODO>
+status: Draft
+type: <Standards Track>
+category: <Kernel>
+created: <2023-06-13>
+---
+
+## Abstract
+
+Adds an interface between Ames and Gall that lets Gall tell Ames to drop an incoming `%plea` packet in case the plea targets an agent that isn't running.  The sender will retry every two minutes indefinitely, so if the agent starts running, the `%plea` will eventually go through, with minimal state on the receiving ship.
+
+Without this feature, Gall is reponsible for enqueueing all incoming `%plea`s, which can use up an unbounded amount of memory.
+
+## Motivation
+
+Some ships have needed to breach because a poorly written Gall agent on another ship repeatedly sent pokes to an agent that wasn't running, either because the agent had not been installed or because it had been installed but then suspended or nuked.
+
+Any unbounded queue that can be manipulated by another ship with impunity is untenable for the Arvo kernel.
+
+## Specification
+
+Ames will accept a new `%flub` gift, which another vane (i.e. Gall) will give in response to a `%plea` task from Ames.  The `%flub` gift tells Ames that it should behave as if it had never delivered the `%plea` to the vane, so that the next time Ames hears the packet that completes the message, it passes the `%plea` to the vane again.
+
+If the agent starts running, then when Gall hears one of these later `%plea` tasks from Ames, it will ack the message with a `%done` gift instead of `%flub`bing it.
+
+## Rationale
+
+Bounding the inbound `%plea` queue and nacking early messages when later ones come in would be an alternative design, but that would create ambiguity in the meaning of a nack (negative acknowledgment): does it represent an explicit denial of the request, or was it just dequeued, in which case trying again would work?  The way to prevent this ambiguity is to avoid answering the question until the receiving ship is ready to process the message.
+
+## Backward Compatibility
+
+Since the receiving ship's behavior is indistinguishable from queueing slowly, this should not require burning a Kelvin or building backcompat machinery.
+
+## Copyright
+
+Copyright and related rights waived via [CC0](../LICENSE.md).
