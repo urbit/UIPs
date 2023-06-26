@@ -5,7 +5,7 @@ The goals of the UIP project are to:
 - Make core development decision-making visible and open to entry.
 - Standardize and provide high-quality documentation for Urbit itself and conventions built upon it.
 
-This repository tracks past and ongoing improvements to Urbit in the form of Urbit Improvement Proposals (UIPs). [UIP-0001](./UIPs/UIP-0001.md) governs how UIPs are published.
+This repository tracks past and ongoing improvements to Urbit in the form of Urbit Improvement Proposals (UIPs). [UIP-0001](./UIPS/UIP-0001.md) governs how UIPs are published.
 
 UIPs can be divided into the following categories:
 
