@@ -2,8 +2,7 @@
 title: `%lick` 
 description: An IPC vane
 author: ~mopfel-winrux (@mopfel-winrux)
-discussions-to: <URL>
-status: Draft
+status: Final
 type: Standards
 category: Kernel
 created: 2023-06-29
