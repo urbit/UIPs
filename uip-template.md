@@ -2,7 +2,6 @@
 title: <The UIP title is a few words, not a complete sentence>
 description: <Description is one full (short) sentence>
 author: <a comma separated list of the author's or authors' name or @p + GitHub username (in parenthesis), or name or @p and email (in angle brackets). 
-discussions-to: <URL>
 status: Draft
 type: <Standards Track, Process, or Informational>
 category: <Kernel, Hoon, Nock> # Only required for Standards Track. Otherwise, remove this field.
