@@ -1,0 +1,117 @@
+---
+title: Essential Desks
+description: Introduce a distinction between essential and non-essential desks, which block and do not block OTAs, respectively.
+author: Philip Monk (philipcmonk)
+status: Draft
+type: Standards Track
+category: Kernel
+created: 2023-07-26
+---
+
+## Abstract
+
+We commonly install an Urbit app on a whim, and then when a kelvin
+update arrives, it blocks the upgrade because it's not yet compatible
+with the new version.  This frustrates the user and lowers the general
+health of the network by causing many ships to fall out of date.  We
+propose introducing a distinction between essential desks and
+non-essential desks, where only essential desks will block upgrades.
+Newly installed desks will default to non-essential.
+
+## Motivation
+
+An important part of the experience of using Urbit is installing apps
+fearlessly: you should be able to install a desk without worrying that
+it will compromise the integrity of the system or cause problems down
+the line.
+
+One of the handful of reasons why this isn't currently the case (along
+with a lack of a security model, which is not addressed here) is that
+when you install a desk, you're implicitly telling the system that this
+desk is very important, and it should never cause it to stop working
+without explicit consent from the user.  Especially, this means that a
+kelvin upgrade cannot occur if that desk is not compatible with the new
+kelvin.  This commonly stops kelvin upgrades from proceeding
+automatically.
+
+It's very bad for kelvin updates to be delayed for very long.  The user
+will stop getting updates even on their other desks (since those updates
+are for the new kelvin), and so networked apps will generally stop
+working over time.  This also makes it difficult for developers to fix
+problems they find in their desks (including security problems), and
+even bugs we find in the core system.  This also introduces a
+significant burden for hosting providers if they want to provide a
+consistenly good user experience to users, since many of their users
+will fall out of date.
+
+This situation arises because we don't want to suspend a user's app just
+to upgrade the system -- after all, Urbit exists to run apps, not apps
+for Urbit.  If the main app that a user cares about is suspended to run
+an upgrade, their experience is significantly diminished, even if it's
+only for a couple days before the developer updates the app to be
+compatible with the new kelvin.
+
+## Specification
+
+We propose introducing a distinction between "essential" and
+"non-essential" desks.  An essential desk has the current semantics: if
+the desk is not compatible with the new kelvin, block the update until
+it becomes compatible.  A non-essential desk has the opposite semantics:
+if the desk is not compatible with the new kelvin, suspend the desk and
+continue with the update.  As currently happens, when that desk receives
+an update that makes it compatible with the new kelvin, it should
+automatically revive.
+
+A further consideration is what to do when a desk declares compatibility
+with the new kelvin, but when you attempt to apply the update, it
+crashes.  Currently, this will block the update, and that should
+continue to be the case for essential desks.  For non-essential desks,
+a crash should only suspend that desk, and the rest of the update should
+continue.  This suggests that non-essential desks should be upgraded in
+deferred events instead of the main upgrade event (see `%held` for a
+possible mechanism).
+
+Finally, we must consider which desks are marked essential.  They will
+have the following triggers:
+
+- `%base` is always essential
+- A desk which is present during boot will be marked essential
+- A desk which is installed after boot will be marked non-essential
+- A desk which is suspended (whether to unblock an OTA or for another
+  reason) will be marked non-essential
+- A desk can be marked essential manually by the user with a command
+  such as `|mark-desk %desk %essential`.
+
+## Rationale
+
+Another way to attack the problem is to reduce the frequency of breaking
+updates.  For example, we could more intelligently recognize when a new
+kelvin doesn't actually break an app without requiring the developer to
+declare compatibility.
+
+However, even with fewer breaking changes, this proposal is still useful
+for truly breaking changes, which are still fairly common.  It's also a
+fundamentally correct change, in the sense that it more accurately
+models how users actually think about their apps.
+
+## Backwards Compatibility
+
+The main consideration is what to do about apps that are already
+installed when this change is released.  The most conservative choice
+would be to mark all existing desks as essential.  We think it would be
+better to instead recognize a specific set of desks to mark as
+essential, since this will most closely approximate what would have
+happened if this existed all along.  It also will make updates the most
+smooth going forward for the current fleet.
+
+That set of desks will match the current official pill: `%base`
+(implicitly), `%garden`, `%landscape`, `%groups`, and `%talk`.
+
+## Security Considerations
+
+No particular considerations come to mind, other than that this will
+generally keep more ships up-to-date, which is good for security.
+
+## Copyright
+
+Copyright and related rights waived via [CC0](../LICENSE.md).
