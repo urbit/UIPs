@@ -1,0 +1,63 @@
+---
+title: gall agent backups
+description: Expose agent state to enable backup and restore.
+author: ~midden-fabler (@midden-fabler), ~mopfel-winrux (@mopfel-winrux)
+status: Draft
+type: Standards Track
+category: Kernel
+created: TBD
+---
+
+## Abstract
+
+* Expose agent state in a `%gall` scry endpoint.
+* Enable agent backup and restoration.
+* Devs opt in to implementing restore functionality.
+
+## Motivation
+
+* The primary motivation behind adding a new scry endpoint to the agent is to facilitate the essential task of enabling backups for gall agents. As the current scrys in place prove insufficient for backing up these critical agents, the need for a more specialized and robust scry endpoint becomes evident. By introducing a dedicated backup-enabled scry endpoint, the agent's functionality and data preservation capabilities will be significantly enhanced, ensuring the safeguarding of vital information and enabling seamless recovery in the event of unexpected failures or data loss. This improvement will not only provide peace of mind for users but also enhance the overall reliability and resilience of the agent's operations.
+
+## Specification
+
+* `.^(* %gv /=dude=/$)`
+* Return type candidates (versioned):
+  * `egg` with stripped type
+  * `egg` subset with stripped type
+  * `egg` data converted to `bowl`, stripped type, extra data from `egg`
+    * e.g. `[bowl page extra]`
+
+* Move egg to `%lull`?
+
+## Rationale
+
+* Initial prototype included a subset of a `bowl`, and `on-save:agent` - everything readily accessible.
+  * Possibly relevant data present in an `egg` was omitted.
+* `~rovnys-ricfer` suggested stripping the `type` in a `vase` to avoid including the standard library, reducing size (~3x on a fakezod), and avoiding `+cue` issues.
+* The returned value should be immediately `jam`mable / `cue`able.
+  * Avoid broken backups.
+  * Encourage compatible backup / restore implementations.
+
+## Backwards Compatibility
+
+* Discussion
+  * Restoring from a backup can be handled in `+on-poke`.
+  * Adding an `agent:gall` arm e.g. `++  on-restore  |=(=egg !!)` would encourage compatible implementations.
+    * Coordinating a breaking change with [`+on-rift`](../urbit/pull/5338) would be ideal, and provide all the building blocks required for an easy to implement, seamless, backup / restoration experience.
+  * `eggs` aren't head tagged for versioning.
+    * Grab version # from `-:*spore`?
+
+## Reference Implementation
+
+~
+
+## Security Considerations
+
+* All agent state is exposed to userspace.
+  * This was already possible with a trivial change to `%gall`.
+* Unencrypted backups may contain sensitive data.
+* Backups should be verified, or loaded from a trusted source.
+
+## Copyright
+
+Copyright and related rights waived via [CC0](../LICENSE.md).
