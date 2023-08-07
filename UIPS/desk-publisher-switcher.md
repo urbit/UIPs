@@ -10,15 +10,12 @@ created: 2023-07-28
 
 ## Abstract
 
-Add a `%kiln-change-source` poke to `%kiln` that changes all active syncs from
-`old=[ship desk]` to `new=[ship desk]`. This poke can be done from the local
-ship or from a remote ship iff that ship is the current update source.
-
-Add a `%kiln-change-provider` poke to `%kiln` that scries out the subscribers
-for the given `desk`, filters them for `%sing` `%w` subs to `let+1` (what
-`%kiln` uses), then sends them all a `%kiln-change-source` poke asking them to
-switch to a new `[ship desk]`. This allows a provider to migrate app
-distribution to a new ship/desk.
+Allows app publishers to send a poke to all those subscribed for desk updates
+requesting they change the source of updates to a new ship/desk. Such requests
+are recorded in kiln's state, and the recipients can then approve or reject
+them. Upon approval, all existing syncs from the the old ship/desk will be
+changed to sync from the new ship/desk. This allows app publishers to more
+easily migrate the distribution ship.
 
 ## Motivation
 
@@ -34,27 +31,46 @@ personal ship or moon but want to switch to a star.
 
 ## Specification
 
-Kiln gets two new pokes: `%kiln-change-source` of `[old=dock new=dock]` and
-`%kiln-change-provider` of `[syd=desk her=ship sud=desk]`. The former can be
-done from the local ship or a remote ship iff the remote ship is the current
-update source.
+Three pokes are added to kiln:
 
-When `%kiln` gets a `%kiln-change-provider` poke, it scries out the subscribers
-for the given `desk` from Clay, filters them for `%sing` `%w` subs to `let+1`
-(what `%kiln` uses), and pokes them all with `%kiln-change-source` the new
-`[ship desk]` source.
+- `%kiln-jump-propose`: A publisher can propose a switch of update source for
+- subscribers of a desk. Kiln will scry Clay for `%w` `%sing` subs to `let+1`
+- for that desk, then send all those ships a `%kiln-jump-ask` poke, asking them
+- to switch.
+- `%kiln-jump-ask`: This is a request to switch update source from ship/desk A
+  to ship/desk B. It can either come from the existing update source ship or
+  from `our`. The request will be added to the new `hop` `(map dock dock)` in
+  kiln's state, and can then be approved or rejected.
+- `%kiln-jump-opt`: Approve or reject a jump request. Upon approval, all syncs
+  from the old ship/desk will be switched to the new ship/desk.
 
-The `%kiln-change-source` poke doesn't change the `zest` of the desk, it just
-changes the update source, so it won't do things like reactivate suspended
-desks, unlike `|install`.
+A `/x/kiln/jumps` scry endpoint is added to retrieve the map of pending
+source change requests. A `%watch` path of `/jumps` is also added to get
+updates of new requests & approvals/rejections. The data type returned
+by both is defined in `/sur/hood.hoon`:
 
-A `+change-provider` generator is added to `gen/hood` to do this.
+```hoon
+::  $jump: changes to update source change requests
+::      
++$  jump
+  $%  [%all all=(map dock dock)]        :: pending requests
+      [%add old=dock new=dock]          :: new request
+      [%yea old=dock new=dock]          :: approved
+      [%nay old=dock new=dock]          :: denied
+  ==
+```
 
-It's theoretically possible for a small number of subscribers to not receive
-the poke if, due to something like networking issues, they received the
-previous update but then didn't manage to resubscribe for the next one. Even
-so, switching all but a couple of subscribers is still very useful & such cases
-can fairly easily be handled by ordinary technical support.
+A `%kiln-jump` mark is added for this with a json conversion method so
+front-ends can subscribe or scry for such requests and ask users to
+approve. The `%kiln-jump-opt` mark also has a conversion method from
+json so front-ends can approve/reject.
+
+Four generators are also added:
+
+- `|jump/propose`: publisher can propose a source switch to subscribers
+- `|jump/approve`: subscribers can approve jump requests
+- `|jump/reject`: subscribers can deny jump requests
+- `+jumps`: list pending jump requests.
 
 ## Rationale
 
@@ -64,11 +80,17 @@ could theoretically capture subs that aren't from kiln, but that shouldn't be a
 problem because if those ships don't have kiln subs the poke just won't do
 anything.
 
+Initial implemenation proposed automatically switching source upon
+request, but after discussion it was determined the user should have to
+approve the requests, hence the storage of requests in state & the
+approval/rejection process.
+
 ## Backwards Compatibility
 
-If ships are behind on OTAs and don't support `%kiln-change-source`, they just
-won't be switched, so it's no worse than the current situation. This would only
-be a problem after initial release, eventually all ships will catch up.
+If ships are behind on OTAs and don't support the pokes, they just won't
+be switched, so it's no worse than the current situation. This would
+only be a problem after initial release, eventually all ships will catch
+up.
 
 ## Reference Implementation
 
@@ -76,10 +98,8 @@ be a problem after initial release, eventually all ships will catch up.
 
 ## Security Considerations
 
-There is a security question of letting app publishers change update sources
-without user input, but it doesn't seem worse than what they can already do & I
-think it's reasonable to transitively trust the new source based on trust of
-the existing publisher.
+The initial trust issue of automatically switching has been resolved by
+requiring approval.
 
 ## Copyright
 
