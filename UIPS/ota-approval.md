@@ -1,0 +1,71 @@
+---
+title: OTA approval
+description: Kiln can optionally prompt users for approval before applying pending updates
+author: ~tinnus-napbus
+status: Draft
+type: Standards Track
+category: Kernel
+created: 2023-08-21
+
+---
+
+## Abstract
+
+Kiln subscribes to `+(let)` for the revision number of a desk (a `%w` care).
+When it gets the response, it tells Clay to initiate a merge for that revision.
+
+Instead of immediately initiating the merge, it should record the availability
+of an update in state & ask the user to approve it by sending a a gift out on a
+subscription path. The user can then approve the update in the front-end which
+will poke kiln to proceed with the merge.
+
+Kiln should be able to enable global auto-updates, so the user doesn't need to
+approve if they don't want to. Individual desks should also be able to be set
+to auto/manual, and this should override global settings.
+
+## Motivation
+
+Currently users have little control over updates and don't know when things
+have been updated. They can disable updates for a desk, but then don't know if
+there have been any further updates they might want to install. Users should
+have more control & be notified when updates are available.
+
+## Specification
+
+Kiln should have an extra `?` added to the `sync-state` that tracks whether an
+update is available to be merged.
+
+Kiln should have a `?` added to state that enables/disables global auto-merges.
+
+Kiln should have an extra `(unit ?)` added to the `sync-state` that specifies
+whether updates should be auto-merged. If null it should fall back to the
+global setting.
+
+Kiln should have a poke added that approves & initiates merging of an available
+update.
+
+Kiln should have a poke added that sets the global auto-merge flag.
+
+Kiln should have a poke added that sets the
+auto-merge flag for a particular sync.
+
+## Rationale
+
+TBD
+
+## Backwards Compatibility
+
+No backward compatibility issues found.
+
+## Reference Implementation
+
+None
+
+## Security Considerations
+
+No apparent security issues apart from obviously needing to check `=(src our)`
+for pokes.
+
+## Copyright
+
+Copyright and related rights waived via [CC0](../LICENSE.md).
