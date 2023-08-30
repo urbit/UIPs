@@ -13,8 +13,6 @@ created: 2023-08-19
 
 This proposal modifies the Arvo kernel's move processing to process moves in a breadth-first order rather than the historical depth-first order.  This ensures chronological move processing order, allows for a new concept of simultaneity among vane activations, and should be easier to reason about than depth-first move processing.
 
-The second stage of this work will add a "tick" to Arvo that increments each time it runs a vane.  This tick will be used as the `case` in scry requests to request data at the current tick, replacing date-based requests at `now`, which violate referential transparency when run multiple times within an event.
-
 Large portions of this proposal are adapted or copied verbatim from [`~wicdev-wisryt`'s original pull request from `~2022.10.7`](https://github.com/urbit/urbit/pull/6041).
 
 ## Motivation
@@ -97,25 +95,49 @@ We can see that Arvo processes everything downstream of the first `%fact` before
 
 These are the same 15 lines, and they're each at the same depth, but they're in a different order.  Most code we write is agnostic to this order, because there are many circumstances where this order gets inverted compared to our expectations.
 
-The most obvious difference is that the four %facts from dojo to hood happen one right after the other instead of being mingled with other moves.  If some of those intermingled moves invoked dojo (which would be a form of reentrancy) and caused dojo to emit more facts, those facts would be given to hood *before* the %facts which were already on the stack to be sent to hood.  If this is textual output, then it will be in reverse order.  The breadth-first move order fixes this problem completely by running all the facts that were issued at the same time before processing the moves that those themselves produced.
+The most obvious difference is that the four `%fact`s from dojo to hood happen one right after the other instead of being mingled with other moves.  If some of those intermingled moves invoked dojo (which would be a form of reentrancy) and caused dojo to emit more facts, those facts would be given to hood *before* the `%fact`s which were already on the stack to be sent to hood.  If this is textual output, then it will be in reverse order.  The breadth-first move order fixes this problem completely by running all the facts that were issued at the same time before processing the moves that those themselves produced.
 
 Here we can see the main advantage of depth-first ordering at work: moves are processed in the order they are emitted.
 
 ## Specification
 
+Whenever Arvo runs a vane, the vane emits a list of moves, some to the runtime and some to other vanes.  A breadth-first Arvo enqueues the moves to other vanes to be run *after* any moves that are already enqueued; in contrast, depth-first Arvo kernels enqueue the moves from the latest vane to be run *before* other enqueued moves.
 
+This is a small change to the Arvo code itself.  A naive version can be done by changing only the implementation of Arvo's `+emit` arm to append a new list of moves to the queue rather than prepending it.
+
+For efficiency, a simple double-ended queue data structure is used for the queue of moves, instead of a list.  The data structure consists of two lists of move-lists (where each move-list, called a `$plan`, is the result of a vane activation): a `hed` list and a reversed `tal` list.  New lists of moves are logically appended to this queue by prepending them one by one to the `tal` list.  Moves are processed in order by reading from the `hed` list and popping off the first item in that list when done; if the `hed` list is empty, we rebalance the queue by setting `hed` to the reversed `tal` list and set `tal` to null.
+
+There is also an added field to the `$plan` data structure, to improve the legibility of `|verb` debug printing.
+
+## Rationale
+
+Once Arvo uses breadth-first move processing, we could add a "tick" to Arvo that increments each time it runs a vane.  This tick will be used as the `case` in scry requests to request data at the current tick, replacing date-based requests at `now`, which violate referential transparency when run multiple times within an event.  Pinning the scry handler to the tick is considered out of scope for this proposal, however.
 
 ## Backward Compatibility
 
+It is likely that some vanes, agents, and threads expect depth-first move processing and will behave incorrectly when run breadth-first.  These cases mostly need to be found empirically, so it is crucial to exercise the system to shake out any potential bugs.
+
+As for the migration from old to new Arvo, the normal Arvo upgrade semantics ensure that old moves will be handled in the order in which they expected to be handled.  Old moves will be handled by the new Arvo with new vanes, so any downstream moves will be processed in the new breadth-first order.  This is a principled way of handling the transition, and we don't expect issues to arise from the switch.
 
 ## Test Cases
 
+ **TODO: you can help improve this list by expanding it.**
+
+ - [ ] Boot a fresh ship with a breadth-first kernel.
+ - [ ] Migrate a ship from an old depth-first kernel to a new breadth-first kernel.
+ - [ ] Check that a breadth-first Arvo can upgrade itself to a dummy future version.
+ - [ ] Ensure PKI updates can be received properly, including breach notices.
+ - [ ] `|install` an app desk and open it in the web UI.
+ - [ ] `|uninstall` the app, `|revive` it, and check it works properly.
+ - [ ] Exercise Gall's `%watch`, `%leave`, `%fact`, and `%kick` logic.
 
 ## Reference Implementation
 
+https://github.com/urbit/urbit/pull/6775
 
 ## Security Considerations
 
+This does not meaningfully change the security model.  If it does prove easier to reason about, however, then it reduces the effective security attack surface, by reducing likelihood of bugs and unexpected behaviors.
 
 ## Copyright Waiver
 
