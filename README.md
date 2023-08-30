@@ -33,6 +33,7 @@ UIPs can be divided into the following categories:
 | [0112](./UIPS/UIP-0112.md) | Informal Ping             | ~master-morzod, ~norsyr-torryn | Draft     | Standards |
 | [0113](./UIPS/UIP-0113.md) | %ames: Directed Messaging | ~master-morzod                 | Draft     | Standards |
 | [0114](./UIPS/UIP-0114.md) | OTA Approval              | ~tinnus-napbus                 | Draft     | Standards |
+| [0115](./UIPS/UIP-0115.md) | Breadth-First Arvo        | ~wicdev-wicryt, ~rovnys-ricfer | Draft     | Standards |
 
 ## Background
 
