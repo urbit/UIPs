@@ -105,6 +105,8 @@ Advantages over JSON:
 
 The biggest issue with this data structure, in my opinion, is that it's not that simple to convert a normal Hoon data structure to an ulam and back.  Programmers will likely want some kind of conversion generators, like the JSON reparsers.  This is not a great developer experience.  There is some tension between the normal statically typed way that Hoon code stores data and recursively self-tagging data structures like ulam where each layer down the tree has its own type tag.
 
+Another issue with ulam is that it has no pair construct and no face construct, so named tuples, which are some of the most common Hoon data structures, have no natural conversion.  It's always possible to convert named tuples into ulam maps.  That conversion does not preserve the constraint that a Hoon tuple has a fixed number of fields -- this relaxation is mostly a good thing in this context, in my opinion, since it makes it more likely that an old client will still be able to read a data structure at a new version, as long as the fields the client requires are still present.
+
 A different approach to a self-describing data structure would be a pair of a more normally formatted Hoon noun and a portable type designator.  This would not be recursively self-describing; instead, it would be like a Hoon vase: a pair of a descriptor and value.  One could think of such a data structure as a portable vase (vases can't be effectively serialized over the network).
 
 I prototyped such an approach here, called "cone": https://gist.github.com/belisarius222/066ea3487185b0a8b18b2522526b2585.
