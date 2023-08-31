@@ -70,10 +70,10 @@ The data structure for representing a parsed ulam looks like this:
 
 Any ulam can be used as a key in an ulam `%map`.
 
-**TODO** Should commas and colons be required?
-**TODO** Should we add `::` comment syntax?
-**TODO** Should we support multi-line strings?
-**TODO** Should we support Hoon "cube"s, e.g. `%foo`?  If we do, should we also support cube-tagged values?  That would be a natural way to represent a value in a `$%`, which is very common for Hoon data structures.  That might make it easier to convert Hoon data structures into ulams.
+**TODO** *Should commas and colons be required?*
+**TODO** *Should we add `::` comment syntax?*
+**TODO** *Should we support multi-line strings?*
+**TODO** *Should we support Hoon "cube"s, e.g. `%foo`?  If we do, should we also support cube-tagged values?  That would be a natural way to represent a value in a `$%`, which is very common for Hoon data structures.  That might make it easier to convert Hoon data structures into ulams.*
 
 There is a natural bijection into JSON, which should be considered standard.  Here is the above example encoded as JSON:
 
