@@ -103,7 +103,7 @@ Advantages over JSON:
 - better atom types and formats -- in my opinion, Hoon's data formats are quite good
 - standard ordering for maps
 
-The biggest issue with this data structure, in my opinion, is that it's not that simple to convert a normal Hoon data structure to an ulam and back.  Programmers will likely want some kind of conversion generators, like the JSON reparsers.  This is not a great user experience.  There is some tension between the normal statically typed way that Hoon code stores data and recursively self-tagging data structures like ulam where each layer down the tree has its own type tag.
+The biggest issue with this data structure, in my opinion, is that it's not that simple to convert a normal Hoon data structure to an ulam and back.  Programmers will likely want some kind of conversion generators, like the JSON reparsers.  This is not a great developer experience.  There is some tension between the normal statically typed way that Hoon code stores data and recursively self-tagging data structures like ulam where each layer down the tree has its own type tag.
 
 A different approach to a self-describing data structure would be a pair of a more normally formatted Hoon noun and a portable type designator.  This would not be recursively self-describing; instead, it would be like a Hoon vase: a pair of a descriptor and value.  One could think of such a data structure as a portable vase (vases can't be effectively serialized over the network).
 
