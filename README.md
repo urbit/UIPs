@@ -11,7 +11,7 @@ UIPs can be divided into the following categories:
 
 - **Standards Track UIPs** are improvements to Urbit that require a Kelvin version decrement to any of the following components: the machine code specification, Nock; the programming language and its standard library, Hoon; the kernel, kernel modules, its standard library, or the base distribution &mdash; Arvo, vanes, zuse or %base, respectively.
 - **Informational UIPs** describe an Urbit design issue, or provide general guidelines or information to the Urbit community, but do not propose new features. Informational UIPs do not necessarily represent an Urbit community consensus or recommendation, so users and implementors are free to ignore Informational UIPs or follow their advice.
-- **Process UIPs** describe a process surrounding Urbit, or proposes a change to (or an event in) a process. Process UIPs are like Standards Track UIPs but apply to areas other than Urbit itself. They may propose an implementation, but not to Urbit's codebase; they often require community consensus; unlike Informational UIPs, they are more than recommendations, and users are typically not free to ignore them. Examples include procedures, guidelines, changes to the decision-making process, and changes to the tools or environment used in Urbit development. Any meta-UIP is also considered a Process UIP. 
+- **Process UIPs** describe a process surrounding Urbit, or proposes a change to (or an event in) a process. Process UIPs are like Standards Track UIPs but apply to areas other than Urbit itself. They may propose an implementation, but not to Urbit's codebase; they often require community consensus; unlike Informational UIPs, they are more than recommendations, and users are typically not free to ignore them. Examples include procedures, guidelines, changes to the decision-making process, and changes to the tools or environment used in Urbit development. Any meta-UIP is also considered a Process UIP.
 
 ## UIP
 
@@ -35,6 +35,7 @@ UIPs can be divided into the following categories:
 | [0114](./UIPS/UIP-0114.md) | OTA Approval              | ~tinnus-napbus                 | Draft     | Standards |
 | [0115](./UIPS/UIP-0115.md) | Breadth-First Arvo        | ~wicdev-wicryt, ~rovnys-ricfer | Draft     | Standards |
 | [0116](./UIPS/UIP-0116.md) | Arvo Ticks                | ~wicdev-wicryt, ~rovnys-ricfer | Draft     | Standards |
+| [0117](./UIPS/UIP-0117.md) | Ulam: Self-Describing Nouns | ~rovnys-ricfer               | Draft     | Standards |
 
 ## Background
 
