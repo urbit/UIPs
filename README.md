@@ -20,19 +20,19 @@ UIPs can be divided into the following categories:
 | [0001](./UIPS/UIP-0001.md) | Purpose and Guidelines    | ~wolref-podlex                 | Living    | Process   |
 | [0100](./UIPS/UIP-0100.md) | Sticky Scry               | ~rovnys-ricfer                 | Draft     | Standards |
 | [0101](./UIPS/UIP-0101.md) | %lick                     | ~mopfel-winrux                 | Final     | Standards |
-| [0102](./UIPS/UIP-0102.md) | Symmetric Routing         | ~rovnys-ricfer                 | Draft     | Standards |
-| [0103](./UIPS/UIP-0103.md) | Persistent Nock Caching   | ~rovnys-ricfer                 | Draft     | Standards |
+| [0102](./UIPS/UIP-0102.md) | Symmetric Routing         | ~rovnys-ricfer                 | Withdrawn | Standards |
+| [0103](./UIPS/UIP-0103.md) | Persistent Nock Caching   | ~rovnys-ricfer                 | Last Call | Standards |
 | [0104](./UIPS/UIP-0104.md) | Scry Store                | ~rovnys-ricfer                 | Withdrawn | Standards |
 | [0105](./UIPS/UIP-0105.md) | Drop Pokes to Dead Agents | ~rovnys-ricfer                 | Final     | Standards |
 | [0106](./UIPS/UIP-0106.md) | Scry over HTTP            | ~watter-parter                 | Last Call | Standards |
 | [0107](./UIPS/UIP-0107.md) | Auras Renovation          | ~ponmep-litsem                 | Draft     | Standards |
 | [0108](./UIPS/UIP-0108.md) | %yard                     | ~lagrev-nocfep                 | Draft     | Standards |
-| [0109](./UIPS/UIP-0109.md) | Essential Desks           | ~wicdev-wisryt                 | Draft     | Standards |
-| [0110](./UIPS/UIP-0110.md) | Gall Agent Backups        | ~midden-fabler, ~mopfel-winrux | Draft     | Standards |
-| [0111](./UIPS/UIP-0111.md) | Desk Publisher Switcher   | ~tinnus-napbus                 | Draft     | Standards |
+| [0109](./UIPS/UIP-0109.md) | Essential Desks           | ~wicdev-wisryt                 | Last Call | Standards |
+| [0110](./UIPS/UIP-0110.md) | Gall Agent Backups        | ~midden-fabler, ~mopfel-winrux | Last Call | Standards |
+| [0111](./UIPS/UIP-0111.md) | Desk Publisher Switcher   | ~tinnus-napbus                 | Last Call | Standards |
 | [0112](./UIPS/UIP-0112.md) | Informal Ping             | ~master-morzod, ~norsyr-torryn | Draft     | Standards |
 | [0113](./UIPS/UIP-0113.md) | %ames: Directed Messaging | ~master-morzod                 | Draft     | Standards |
-| [0114](./UIPS/UIP-0114.md) | OTA Approval              | ~tinnus-napbus                 | Draft     | Standards |
+| [0114](./UIPS/UIP-0114.md) | OTA Approval              | ~tinnus-napbus                 | Review    | Standards |
 | [0115](./UIPS/UIP-0115.md) | Breadth-First Arvo        | ~wicdev-wicryt, ~rovnys-ricfer | Draft     | Standards |
 | [0116](./UIPS/UIP-0116.md) | Arvo Ticks                | ~wicdev-wicryt, ~rovnys-ricfer | Draft     | Standards |
 | [0117](./UIPS/UIP-0117.md) | Ulam: Self-Describing Nouns | ~rovnys-ricfer               | Draft     | Standards |
