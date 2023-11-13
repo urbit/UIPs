@@ -43,17 +43,17 @@ continuation style:
   (seer vase a)
 ++  on-poke
   |=  [m=mark v=vase]
-  ^-  (gear (quip card _this))
+  ^-  (gear (quip card _this))  ::  (seer vase (quip card _this))
   :+  %scry  /cx/(now)/foo  |=  foo=vase
-  =/  foo-result  !>(@da foo)
+  =/  foo-result  !<(@ foo)
   ::  do something with foo-result...
   [%done ~ this]
 ```
 
 Here's an example of composing `seer` values with monadic bind:
 ```hoon
-++  foo  ^-  (seer vase @)  !!
-++  bar  ^-  (seer vase @)  !!
+++  foo  ^-  (seer vase @)  !!  ::  /foo
+++  bar  ^-  (seer vase @)  !!  ::  /bar
 ++  on-poke
   |=  [m=mark v=vase]
   =*  r  (quip card _this)
