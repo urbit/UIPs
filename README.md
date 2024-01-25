@@ -30,12 +30,13 @@ UIPs can be divided into the following categories:
 | [0109](./UIPS/UIP-0109.md) | Essential Desks           | ~wicdev-wisryt                 | Last Call | Standards |
 | [0110](./UIPS/UIP-0110.md) | Gall Agent Backups        | ~midden-fabler, ~mopfel-winrux | Last Call | Standards |
 | [0111](./UIPS/UIP-0111.md) | Desk Publisher Switcher   | ~tinnus-napbus                 | Last Call | Standards |
-| [0112](./UIPS/UIP-0112.md) | Informal Ping             | ~master-morzod, ~norsyr-torryn | Draft     | Standards |
+| [0112](./UIPS/UIP-0112.md) | Informal Ping             | ~master-morzod, ~norsyr-torryn | Final     | Standards |
 | [0113](./UIPS/UIP-0113.md) | %ames: Directed Messaging | ~master-morzod                 | Draft     | Standards |
 | [0114](./UIPS/UIP-0114.md) | OTA Approval              | ~tinnus-napbus                 | Review    | Standards |
 | [0115](./UIPS/UIP-0115.md) | Breadth-First Arvo        | ~wicdev-wicryt, ~rovnys-ricfer | Draft     | Standards |
 | [0116](./UIPS/UIP-0116.md) | Arvo Ticks                | ~wicdev-wicryt, ~rovnys-ricfer | Draft     | Standards |
 | [0117](./UIPS/UIP-0117.md) | Ulam: Self-Describing Nouns | ~rovnys-ricfer               | Draft     | Standards |
+| [0118](./UIPS/UIP-0118.md) | Encrypted Remove Scry     | ~hastuc-dibtux                 | Last Call | Standards |
 
 ## Background
 
