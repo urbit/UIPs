@@ -38,7 +38,7 @@ UIPs can be divided into the following categories:
 | [0117](./UIPS/UIP-0117.md) | Ulam: Self-Describing Nouns | ~rovnys-ricfer               | Draft     | Standards |
 | [0118](./UIPS/UIP-0118.md) | Encrypted Remove Scry     | ~hastuc-dibtux                 | Last Call | Standards |
 | [0119](./UIPS/UIP-0119.md) | Pretty Printer Improvements | ~sidnym-ladrut               | Draft     | Standards |
-
+| [0120](./UIPS/UIP-0120.md) | HTTP Streaming            | ~rovnys-ricfer                 | Draft     | Standards |
 
 ## Background
 
