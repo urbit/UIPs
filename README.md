@@ -39,6 +39,7 @@ UIPs can be divided into the following categories:
 | [0118](./UIPS/UIP-0118.md) | Encrypted Remove Scry     | ~hastuc-dibtux                 | Last Call | Standards |
 | [0119](./UIPS/UIP-0119.md) | Pretty Printer Improvements | ~sidnym-ladrut               | Draft     | Standards |
 | [0120](./UIPS/UIP-0120.md) | HTTP Streaming            | ~rovnys-ricfer                 | Draft     | Standards |
+| [0121](./UIPS/UIP-0121.md) | %pine Request at Latest   | ~rovnys-ricfer                 | Draft     | Standards |
 
 ## Background
 
