@@ -1,0 +1,93 @@
+---
+uip: 01XX
+title: "%wild: Stateless jet registration"
+description: Propose a new system for deriving jet registrations and hinting which requires no stored state in the interpreter.
+author: ~ritpub-sipsyl (eamsden) 
+status: Draft
+type: <Standards Track, Process, or Informational>
+category: Kernel, Hoon, Nock # Only required for Standards Track. Otherwise, remove this field.
+created: 2024-03-25
+---
+
+## Abstract
+
+TBD
+
+<!--
+  The Abstract is a multi-sentence (short paragraph) technical summary. This should be a very terse and human-readable version of the specification section. Someone should be able to read only the abstract to get the gist of what this specification does.
+
+  TODO: Remove this comment before submitting
+-->
+
+## Motivation
+
+Currently Vere and Ares both handle jet registrations provided by `%fast` hints. By convention and implementation, a `%fast` hint wraps the production of a core, and registers that core's *battery* (axis 2) along with a registered heirarchy of already-registered batteries which match a parent core, whose axis in the newly-registered core is given in the hint. The label provided in a `%fast` hint are consed onto those for parent cores, producing a `$path` for each core registered. This allows us to recognize cores as having a particular label. This ability is fundamental to practical jetting systems.
+
+To correctly implement core labeling with `%fast` hints, an interpreter must maintain *state*. The state directly assembled from `%fast` hints is conventionally referred to as the "cold" state (contrasted with the "hot" state which is shipped with the interpreter binary and maps labels to jets, or the "warm" state which is the join of these two states.)
+
+Cold state must be accumulated throughout the lifetime of the pier. Once the `%fast` hint wrapping the introduction of a core is evaluated, it is *gone* and cannot, in general, be recovered, therefore there is in general no safe way for the interpreter to recognize that registrations can be deleted. The technical term for such a design is a *memory leak*. (Thank you to ~fodwyt-ragful for this insight.)
+
+Further, it is not in general possible to assume the inter-pier portability of core-based state machines (Arvo, Ares codegen, Gall agents, etc). The only way in which this is possible at all is to provide the *introduction forms* (usually typed as `(trap vase)` in Hoon) which will run the fast hints in the target pier.
+
+A simpler, stateless approach is to embrace the referential transparency of a declarative approach, and simply state the necessary registrations when running Nock. This avoids the necessity of the interpreter to maintain state (it may *cache* registrations and relations derived from them, but this is not necessary for feasibility) and does not require shipping introduction forms between piers.
+
+## Specification
+
+Nock interpreters SHOULD respect a dynamic hint labeled `%wild`, whose clue molds to the following Hoon structure:
+
+```hoon
+|%
++$  cape  $@(? [cape cape])
++$  sock  [=cape data=*]
++$  wilt  (list [l=* s=sock])
+--
+```
+
+The list SHOULD be interpreted as the entire set of jet registrations for the enclosed Nock. For each element in the list, the label `l` SHOULD be interpreted as a core label, and the template `s` SHOULD be interpreted as a noun template to be matched as follows:
+
+- If the `cape` is `&`/`0` then `data` is compared to the core and a match is returned if equal.
+- If the `cape` is `|`/`1` then the match is tautological.
+- If the `cape` is a cell, then the sock composed of the head of `cape` and the head of `data` is recursively matched to the head of the core, and mutatis mutandis for the tails.
+- If the `cape` of a `sock` is a cell but `data` is an atom, then the registration MUST be discarded for an invalid sock.
+
+If a match is returned, the interpreter SHOULD treat the matched core as having the given label (`l`) for purposes of jetting and profiling.
+
+The registrations given in the `clue` SHOULD only be applied within the hinted Nock. The clue formula MUST be a Nock 1 (constant).
+
+## Rationale
+
+The `%wild` hint contains exactly the same information as the cold state, but takes the simple step of including the necessary slice of "cold state" *in the Nock to be executed.* This trivially sidesteps all of the problems of state, both in the care required to initialize *mutable state* by side effects of supposedly *immutable* programs, and the necessity of indefinitely preserving that state.
+
+In order to construct the `%wild` hint, we propose to use the `~%` (and `~/`) Hoon runes both to produce `%fast` hints (for backwards compatibility), but also to add labels to core types. This allows us to use all existing Hoon-level core labels without modification.
+
+A separate rune (`~.` is proposed) can extract core labels from the type of an axis of the subject and only needs to be wrapped around *outer entry points* (e.g. the outer arms of Arvo.) This composes the `%wild` hint from the Hoon type of the given axis of the subject.
+
+Thus, no relabeling of cores is necessary, the only Hoon level change is the addition of a simple rune wrapping a fixed number of entry points to Arvo. Hoon can compose the `%wild` hint's clue entirely from information tracked in the subject type.
+
+A further advantage, pointed out by ~master-morzod, is that such a hint could be used to fix the jet mismatch of `+mink`. The rule is simple: neither `+mink` as written, nor the interpreter which is jetting it, ever produce stack traces when executing an arm of a labeled core. This information is accessible to `+mink` without requiring any injection of state.
+
+## Backwards Compatibility
+
+Interpreters are free to ignore `%wild` hints and use existing jet registration implementations, such as cold state derived from `%fast` hints.
+
+## Reference Implementation
+
+TBW
+
+<!--
+  This section is optional.
+
+  The Reference Implementation section should include a minimal implementation that assists in understanding or implementing this specification. It should not include project build files. The reference implementation is not a replacement for the Specification section, and the proposal should still be understandable without it.
+
+  If the reference implementation is too large to reasonably be included inline, then external links to the urbit/urbit and/or urbit/vere repositories are allowed.
+
+  TODO: Remove this comment before submitting
+-->
+
+## Security Considerations
+
+Jet registration obviously implicates security. There is an obvious improvement in the current proposal over stateful jet registration in that an obvious scoping mechanism exists, and that user code has no possible mechanism to to alter registrations for kernel code.
+
+## Copyright
+
+Copyright and related rights waived via [CC0](../LICENSE.md).
