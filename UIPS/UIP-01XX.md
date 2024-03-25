@@ -11,13 +11,11 @@ created: 2024-03-25
 
 ## Abstract
 
-TBD
+This proposal introduces a stateless approach to jet registration in Nock interpreters, utilizing a dynamic hint labeled `%wild`. The `%wild` hint contains the necessary slice of "cold state" for the hinted Nock, thereby avoiding issues with state maintenance and preservation. This approach offers a simple solution to the problems of state in jet registration.
 
-<!--
-  The Abstract is a multi-sentence (short paragraph) technical summary. This should be a very terse and human-readable version of the specification section. Someone should be able to read only the abstract to get the gist of what this specification does.
+The `%wild` hint can be composed by Hoon and can be implemented using existing information in the subject type, extended only by labels from existing `%fast`-hint runes. It also provides a scoping mechanism which prevents user code from altering kernel code registrations.
 
-  TODO: Remove this comment before submitting
--->
+An additional advantage of this  approach is its potential to fix the jet mismatch of `+mink`, without requiring any injection of state.
 
 ## Motivation
 
@@ -64,11 +62,13 @@ A separate rune (`~.` is proposed) can extract core labels from the type of an a
 
 Thus, no relabeling of cores is necessary, the only Hoon level change is the addition of a simple rune wrapping a fixed number of entry points to Arvo. Hoon can compose the `%wild` hint's clue entirely from information tracked in the subject type.
 
-A further advantage, pointed out by ~master-morzod, is that such a hint could be used to fix the jet mismatch of `+mink`. The rule is simple: neither `+mink` as written, nor the interpreter which is jetting it, ever produce stack traces when executing an arm of a labeled core. This information is accessible to `+mink` without requiring any injection of state.
+A further advantage, pointed out by ~master-morzod, is that type-level availability of core labels could be used to fix the jet mismatch of `+mink` in an ergonomic way. If the sample of `+mink` is extended to contain jet registrations (in the same `$wilt` mold), its semantics can be fixed to never produce a stack trace underneath a labeled core. The jet for `+mink` can load the supplied `$wilt` as its local jet registrations, and the interpreter can likewise refuse to produce stack traces under labeled cores, even if they are in fact unjetted. Of course `+mink` should also explicitly handle the `%wild` hint.
+
+A vase-mode wrapper around `+mink` can then extract the necessary registrations from the type carried by the vase.
 
 ## Backwards Compatibility
 
-Interpreters are free to ignore `%wild` hints and use existing jet registration implementations, such as cold state derived from `%fast` hints.
+Interpreters are free to ignore `%wild` hints and use existing jet registration implementations, such as cold state derived from `%fast` hints. However, this will preserve the extant jet mismatch with `+mink`.
 
 ## Reference Implementation
 
