@@ -4,8 +4,8 @@ title: "%wild: Stateless jet registration"
 description: Propose a new system for deriving jet registrations and hinting which requires no stored state in the interpreter.
 author: ~ritpub-sipsyl (eamsden) 
 status: Draft
-type: <Standards Track, Process, or Informational>
-category: Kernel, Hoon, Nock # Only required for Standards Track. Otherwise, remove this field.
+type: Standards Track
+category: Hoon, Nock # Only required for Standards Track. Otherwise, remove this field.
 created: 2024-03-25
 ---
 
