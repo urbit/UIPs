@@ -25,7 +25,7 @@ Thus, if the interpreter makes this determination, it is correct for it to crash
 
 ## Specification
 
-Nock interpreters SHOULD recognize the `%memo` static hint as follows (or extensionally equivalent behavior):
+Nock interpreters SHOULD recognize the `%loop` static hint as follows (or extensionally equivalent behavior):
 
 - Maintain a stack of subject and formula pairs
 - On entry into the hinted computation
