@@ -13,7 +13,7 @@ created: 2024-03-25
 
 A simple static hint can signal to the runtime to check for nontermination by checking if the current subject and hinted formula have a circular evaluation dependency. Since Nock crashes and non-termination are definitionally semantically equivalent, the interpreter can crash deterministically if this heuristic matches. 
 
-Implementing this hint would remove the need to manually implemment such checks within Nock, enabling usecases of the `%memo` hint previously prevented by the need to track such state in the subject.
+Implementing this hint would remove the need to manually implement such checks within Nock, enabling usecases of the `%memo` hint previously prevented by the need to track such state in the subject.
 
 ## Motivation
 
