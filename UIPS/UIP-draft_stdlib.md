@@ -51,7 +51,7 @@ It is possible that we should mask, e.g. `++spin`, by its own name to preserve t
 
 ## Reference Implementation
 
-An implementation is provided at [`sigilante/libtree`](https://github.com/sigilante/libtree).  As an excerpt, here are two example snippets:
+An implementation is provided at [`tamlut-modnys/userspace-util/)`]([https://github.com/sigilante/libtree](https://github.com/tamlut-modnys/userspace-util/)).  As an excerpt, here are two example snippets:
 
 **`/lib/maplist`**
 
