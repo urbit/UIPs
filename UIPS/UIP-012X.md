@@ -13,10 +13,10 @@ created: 2024-05-09
 We propose adding a `%jinx` hint to terminate computations automatically from the runtime.
 
 ```
-> ~>  %jinx  ~s5  (add 1 3)
+> ~>  %jinx  [~s5 (add 1 3)]
 4
 
-> ~>  %jinx  ~s5  (add 1 3)
+> ~>  %jinx  [~s5 (add 1 3)]
 bail: timed out at s/5.001.000
 ```
 
@@ -30,7 +30,7 @@ While the subject-oriented programming model provides some security, and userspa
 
 The `%jinx` hint is a dynamic hint accepting a timeout value and an expression.  If the expression does not complete within the span of the timeout value, then the runtime should interrupt the process with a `bail` and slog the elapsed time to the console.
 
-No changes need to be made to `/sys/hoon` or Arvo.  Vere needs to be modified in `nock.c` to handle the hint along with a callback interrupt function somewhere (`manage.c`?).
+No changes need to be made to `/sys/hoon` or Arvo.  Vere needs to be modified in `nock.c` to handle the hint.  The currently unused timeout mechanism in `u3m_soft` will be reactivated with the head of the hint for the timeout and the tail of the hint for the product.
 
 An implementation has been begun in `sigilante/jinx`.
 
