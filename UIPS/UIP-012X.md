@@ -13,10 +13,10 @@ created: 2024-05-09
 We propose adding a `%jinx` hint to terminate computations automatically from the runtime.
 
 ```
-> ~>  %jinx  [~s5 (add 1 3)]
+> ~>  %jinx.[~s5]  (add 1 3)
 4
 
-> ~>  %jinx  [~s5 (add 1 3)]
+> ~>  %jinx.[~s5]  (infinite-loop)
 bail: timed out at s/5.001.000
 ```
 
