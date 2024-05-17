@@ -17,7 +17,17 @@ We propose adding a `%jinx` hint to terminate computations automatically from th
 4
 
 > ~>  %jinx.[~s5]  (infinite-loop)
-bail: timed out at s/5.001.000
+recover: dig: alrm
+crud: %belt event failed
+call: failed
+
+> ~>  %jinx.[~s4]  =|(i=@ |-(?:(=(10.000.000 i) i $(i +(i)))))
+10.000.000
+
+> ~>  %jinx.[~s3|  =|(i=@ |-(?:(=(10.000.000 i) i $(i +(i)))))
+recover: dig: alrm
+crud: %belt event failed
+call: failed
 ```
 
 ## Motivation
@@ -28,11 +38,11 @@ While the subject-oriented programming model provides some security, and userspa
 
 ## Specification
 
-The `%jinx` hint is a dynamic hint accepting a timeout value and an expression.  If the expression does not complete within the span of the timeout value, then the runtime should interrupt the process with a `bail` and slog the elapsed time to the console.
+The `%jinx` hint is a dynamic hint accepting a timeout value and an expression.  If the expression does not complete within the span of the timeout value, then the runtime should interrupt the process with a `bail` and slog the elapsed time to the console.  The timeout value is specified in Urbit fracto-seconds but converted in the runtime to Unix milliseconds.
 
 No changes need to be made to `/sys/hoon` or Arvo.  Vere needs to be modified in `nock.c` to handle the hint.  The currently unused timeout mechanism in `u3m_soft` will be reactivated with the head of the hint for the timeout and the tail of the hint for the product.
 
-An implementation has been begun in `sigilante/jinx`.
+An implementation has been begun in `sigilante/timeout`, PR [#648](https://github.com/urbit/vere/pull/648).
 
 ## Backwards Compatibility
 
