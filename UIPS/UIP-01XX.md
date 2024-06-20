@@ -53,6 +53,30 @@ The sender must provide the JSON object in the following format:
 
 The receiver would then issue a `GET` request with appropriate `Authorization` header (if provided) and download the pier that way.
 
+### Export REST API Endpoint
+
+`pierport/v1/export/~<patp>/<token>`, `GET` - downloads the pier. Upon success returns HTTP ACCEPTED with the data in appropriate content type.
+
+#### Headers
+
+Pier source MUST set the `Content-Type` header to one of the values from the "Import REST API Endpoint" section.
+
+#### Details
+
+The `<token>` SHALL be assumed to be known by the protocol consumer through out-of-band means. The protocol implementer MUST retain `~<patp>'s` data until `DELETE` request is issued at the given path. If `DELETE` or `PUT` request is not issued within 1 hour, then the pier source MAY assume the pier export has failed, and it can be restarted.
+
+### Export-retain REST API Endpoint
+
+`pierport/v1/export/~<patp>/<token>`, `PUT` - indicates export has not been completed, pier is still being processed and that the pier source should retain it.
+
+After receiving HTTP ACCEPTED from this endpoint, the pier destination may continue its local import procedure for the next hour. It is RECOMMENDED for this endpoint to be triggered every 15 minutes, until the import is complete. Any HTTP client error response should indicate that the export process has been cancelled and the pier destination MUST delete the locally stored pier.
+
+### Export-finish REST API Endpoint
+
+`pierport/v1/export/~<patp>/<token>`, `DELETE` - indicates export has been completed, and that the pier source may now delete it.
+
+After receiving HTTP ACCEPTED from this endpoint, the pier destination MUST assume exclusive ownership of the pier. Any HTTP client error response code SHALL indicate the export is cancelled and the pier destination MUST delete the pier.
+
 ### Archive structure
 
 The pier MUST either have its data laid out at the root of the archive, or under a subdirectory titled the same as the ship's `@p`. For example, in the second case, the layout of `taster-dozzod-dozzod` ship may look as follows:
@@ -152,6 +176,8 @@ We include the `~<patp>` in the REST API to enable for early exit in case of dup
 Mounted desks are merely mirrors of underlying clay state, therefore, protocol implementors MAY choose to not unpack the desk directories. This may lead to inconsistent view (mounted desk without corresponding filesystem entry), but the Urbit runtime should be able to handle it.
 
 Sessions only expose polling for simplicity sake. In the future, the protocol may be extended with long-polling, however, it was not added, because it is unclear if it is necessary.
+
+Existence of both import and export (push and pull) endpoints is necessary for covering all key directions of pier portability: self-custody to cloud, cloud to self-custody, cloud to cloud.
 
 ## Reference Implementation
 
