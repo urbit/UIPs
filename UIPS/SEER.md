@@ -1,4 +1,5 @@
 ---
+uip: "0128"
 title: Seer
 description: A monadic scry interface.
 author: ~fodwyt-ragful, ~mastyr-bottec
