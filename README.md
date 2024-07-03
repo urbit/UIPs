@@ -44,6 +44,8 @@ UIPs can be divided into the following categories:
 | [0123](./UIPS/UIP-0123.md) | %loop hint: reify infinite loops as crashes | ~ritpub-sipsyl | Draft   | Standards |
 | [0124](./UIPS/UIP-0124.md) | Computation Timeout Hint  | ~lagrev-nocfep                 | Draft     | Standards |
 | [0125](./UIPS/UIP-0125.md) | %eyre/%iris Webssocket Support | ~fidwed-sipwyn            | Draft     | Standards |
+| [0126](./UIPS/UIP-0126.md) | Pierport Protocol         | ~littul-pocdev                 | Draft     | Standards |
+
 
 ## Background
 
