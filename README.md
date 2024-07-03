@@ -46,6 +46,7 @@ UIPs can be divided into the following categories:
 | [0125](./UIPS/UIP-0125.md) | %eyre/%iris Webssocket Support | ~fidwed-sipwyn            | Draft     | Standards |
 | [0126](./UIPS/UIP-0126.md) | Pierport Protocol         | ~littul-pocdev                 | Draft     | Process   |
 | [0127](./UIPS/UIP-0127.md) | Lagoon IEEE 754 Reals     | ~lagrev-nocfep                 | Draft     | Standards |
+| [0128](./UIPS/UIP-0128.md) | Monadic Scry Interface    | ~fodwyt-ragful, ~mastyr-bottec | Draft     | Standards |
 
 
 ## Background
