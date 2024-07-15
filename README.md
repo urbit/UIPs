@@ -28,16 +28,25 @@ UIPs can be divided into the following categories:
 | [0107](./UIPS/UIP-0107.md) | Auras Renovation          | ~ponmep-litsem                 | Draft     | Standards |
 | [0108](./UIPS/UIP-0108.md) | %yard                     | ~lagrev-nocfep                 | Draft     | Standards |
 | [0109](./UIPS/UIP-0109.md) | Essential Desks           | ~wicdev-wisryt                 | Last Call | Standards |
-| [0110](./UIPS/UIP-0110.md) | Gall Agent Backups        | ~midden-fabler, ~mopfel-winrux | Last Call | Standards |
-| [0111](./UIPS/UIP-0111.md) | Desk Publisher Switcher   | ~tinnus-napbus                 | Last Call | Standards |
+| [0110](./UIPS/UIP-0110.md) | Gall Agent Backups        | ~midden-fabler, ~mopfel-winrux | Final     | Standards |
+| [0111](./UIPS/UIP-0111.md) | Desk Publisher Switcher   | ~tinnus-napbus                 | Final     | Standards |
 | [0112](./UIPS/UIP-0112.md) | Informal Ping             | ~master-morzod, ~norsyr-torryn | Final     | Standards |
-| [0113](./UIPS/UIP-0113.md) | %ames: Directed Messaging | ~master-morzod                 | Draft     | Standards |
-| [0114](./UIPS/UIP-0114.md) | OTA Approval              | ~tinnus-napbus                 | Review    | Standards |
-| [0115](./UIPS/UIP-0115.md) | Breadth-First Arvo        | ~wicdev-wicryt, ~rovnys-ricfer | Draft     | Standards |
-| [0116](./UIPS/UIP-0116.md) | Arvo Ticks                | ~wicdev-wicryt, ~rovnys-ricfer | Draft     | Standards |
+| [0113](./UIPS/UIP-0113.md) | %ames: Directed Messaging | ~master-morzod                 | Last Call | Standards |
+| [0114](./UIPS/UIP-0114.md) | OTA Approval              | ~tinnus-napbus                 | Final     | Standards |
+| [0115](./UIPS/UIP-0115.md) | Breadth-First Arvo        | ~wicdev-wicryt, ~rovnys-ricfer | Last Call | Standards |
+| [0116](./UIPS/UIP-0116.md) | Arvo Ticks                | ~wicdev-wicryt, ~rovnys-ricfer | Last Call | Standards |
 | [0117](./UIPS/UIP-0117.md) | Ulam: Self-Describing Nouns | ~rovnys-ricfer               | Draft     | Standards |
-| [0118](./UIPS/UIP-0118.md) | Encrypted Remove Scry     | ~hastuc-dibtux                 | Last Call | Standards |
+| [0118](./UIPS/UIP-0118.md) | Encrypted Remote Scry     | ~hastuc-dibtux                 | Final     | Standards |
 | [0119](./UIPS/UIP-0119.md) | Pretty Printer Improvements | ~sidnym-ladrut               | Draft     | Standards |
+| [0120](./UIPS/UIP-0120.md) | HTTP Streaming            | ~rovnys-ricfer                 | Last Call | Standards |
+| [0121](./UIPS/UIP-0121.md) | %pine Request at Latest   | ~rovnys-ricfer                 | Draft     | Standards |
+| [0122](./UIPS/UIP-0122.md) | %wild: Stateless jet registration | ~ritpub-sipsyl         | Last Call | Standards |
+| [0123](./UIPS/UIP-0123.md) | %loop hint: reify infinite loops as crashes | ~ritpub-sipsyl | Last Call | Standards |
+| [0124](./UIPS/UIP-0124.md) | Computation Timeout Hint  | ~lagrev-nocfep                 | Last Call | Standards |
+| [0125](./UIPS/UIP-0125.md) | %eyre/%iris Webssocket Support | ~fidwed-sipwyn            | Draft     | Standards |
+| [0126](./UIPS/UIP-0126.md) | Pierport Protocol         | ~littul-pocdev                 | Draft     | Process   |
+| [0127](./UIPS/UIP-0127.md) | Lagoon IEEE 754 Reals     | ~lagrev-nocfep                 | Draft     | Standards |
+| [0128](./UIPS/UIP-0128.md) | Monadic Scry Interface    | ~fodwyt-ragful, ~mastyr-bottec | Draft     | Standards |
 
 
 ## Background
