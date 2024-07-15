@@ -11,8 +11,9 @@ created: 2024-07-15
 
 ## Abstract
 
-The syntax `/===` prefills in the Dojo to the current `beak`.  This syntax
-should be made Dojo-only and removed from the Hoon core language.
+The syntax `/===` prefills in Hoon to the current `beak` (in Dojo) or its bunt
+(in `/app`).  This syntax should be made Dojo-only and removed from the Hoon
+core language.
 
 ## Motivation
 
