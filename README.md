@@ -48,6 +48,9 @@ UIPs can be divided into the following categories:
 | [0127](./UIPS/UIP-0127.md) | Lagoon IEEE 754 Reals     | ~lagrev-nocfep                 | Draft     | Standards |
 | [0128](./UIPS/UIP-0128.md) | Monadic Scry Interface    | ~fodwyt-ragful, ~mastyr-bottec | Draft     | Standards |
 | [0129](./UIPS/UIP-0129.md) | Typed Paths with Coin Encodings | ~rovnys-ricfer           | Draft     | Standards |
+| [0130](./UIPS/UIP-0130.md) | Content Addressable Networking | ~hastuc-dibtux            | Draft     | Standards |
+| [0131](./UIPS/UIP-0131.md) | Ministry         | ~master-malwyl, ~rolryx, ~sarlev-sarsen | Draft     | Standards |
+| [0132](./UIPS/UIP-0132.md) | Planet Token              | ~master-malwyl                 | Draft     | Standards |
 
 ## Background
 
