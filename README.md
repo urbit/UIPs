@@ -37,7 +37,7 @@ UIPs can be divided into the following categories:
 | [0116](./UIPS/UIP-0116.md) | Arvo Ticks                | ~wicdev-wicryt, ~rovnys-ricfer | Stagnant  | Standards |
 | [0117](./UIPS/UIP-0117.md) | Ulam: Self-Describing Nouns | ~rovnys-ricfer               | Stagnant  | Standards |
 | [0118](./UIPS/UIP-0118.md) | Encrypted Remote Scry     | ~hastuc-dibtux                 | Shipped   | Standards |
-| [0119](./UIPS/UIP-0119.md) | Pretty Printer Improvements | ~sidnym-ladrut               | Draft     | Standards |
+| [0119](./UIPS/UIP-0119.md) | Pretty Printer Improvements | ~sidnym-ladrut               | Approved  | Standards |
 | [0120](./UIPS/UIP-0120.md) | HTTP Streaming            | ~rovnys-ricfer                 | Shipped   | Standards |
 | [0121](./UIPS/UIP-0121.md) | %pine Request at Latest   | ~rovnys-ricfer                 | Stagnant  | Standards |
 | [0122](./UIPS/UIP-0122.md) | %wild: Stateless jet registration | ~ritpub-sipsyl         | Stagnant  | Standards |
