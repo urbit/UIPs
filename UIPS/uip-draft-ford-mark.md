@@ -1,7 +1,7 @@
 ---
 title: Ford rune for +grad arm inheritance in marks
 description: Delegation of mark revision control is done with a new Ford rune, making the dependency tree discoverable by parsing only Ford headers.
-author: ~dozreg-toplud (@quodss), ~midden-fabler (midden-fabler)
+author: ~dozreg-toplud (@quodss), ~midden-fabler (@midden-fabler)
 status: Draft
 type: Standards Track
 category: Kernel
