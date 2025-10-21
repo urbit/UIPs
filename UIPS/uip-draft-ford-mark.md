@@ -26,9 +26,11 @@ The UIP proposes a new Ford rune (provisionally `/#`) to declare `+grad` arm del
 
 `/#` rune MUST be followed by Hoon gap, followed by a term to indicate to which mark the revision control is delegated.
 
+There MUST NOT be two or more `/#` runes in the Ford header of a Hoon file.
+
 If the file with `/#` rune is built as a regular file, `/#` rune MUST NOT have any effect.
 
-If the file with `/#` rune is built as a mark file, the core which is produced by the Hoon contents of the file MUST NOT have a `++grad` arm.
+If the file with `/#` rune is built as a mark file, the core to which the Hoon contents of the file is evaluated MUST NOT have a `++grad` arm.
 
 If a file is built as a mark file and it does not have a `/#` rune, the core which is produced by the Hoon contents of the file MUST have a `++grad` arm, and the product of that arm MUST NOT be an atom.
 
@@ -39,7 +41,6 @@ If a file is built as a mark file and it does not have a `/#` rune, the core whi
 ## Backwards Compatibility
 
 This UIP would require a change to all mark files that use `+grad` delegation. Even though neither Clay nor Ford are Kelvin-versioned, the change is disruptive enough to be included into a Kelvin-versioned update.
-
 
 ## Security Considerations
 
