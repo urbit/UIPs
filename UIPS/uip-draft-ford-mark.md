@@ -36,7 +36,7 @@ If a file is built as a mark file and it does not have a `/#` rune, the core whi
 
 ## Rationale
 
-`/#` rune not having an effect is necessary for mark-conversion gate builds, which build mark files as regular files, avoiding a cycle in mark file builds with `+grad` delegation.
+`/#` rune not having an effect if the file is built as a regular Hoon file is necessary for mark-conversion gate builds, which build mark files as regular files, avoiding a cycle in mark file builds with `+grad` delegation.
 
 ## Backwards Compatibility
 
