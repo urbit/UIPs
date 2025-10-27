@@ -2,7 +2,7 @@
 uip: "XXXX"
 title: Comet Attestation
 description: Allow for rotatable comet networking keys
-author: ~hanfel-dovned, ~tinnus-napbus, ~bonbud-macryg
+author: ~hanfel-dovned, ~tinnus-napbus, ~bonbud-macryg, ~tondes-sitrym
 status: Draft
 type: Standards Track
 category: Kernel
@@ -23,7 +23,7 @@ Collectively, these changes make comet identity cryptographically coupled to the
 
 Groundwire’s thesis is pragmatic: over the long term, Bitcoin is the only chain that provides an unambiguous, protocol-level canonical history (the heaviest valid proof-of-work chain) that a Kelvin 0 Urbit could resolve without social coordination or trusted checkpoints. This suggests a clean long-term anchor for the Urbit PKI.
 
-It is too early to propose that that belief be enforced by kernel policy. Instead, Urbit should provide a general mechanism whereby comets can attest keys to any PKI source (chosen by a Jael `%listen` task) and peers can verify these attestations.
+It is too early to propose that that belief be enforced by kernel policy. Moreover, Bitcoin's data and scripting models present a range of potential mechanisms for identity attestation that differ markedly from those possible on Ethereum. The new affordances and challenges of these options to a large extent can only be properly explored through real-world usage and iteration. Thus while Bitcoin's popular ordinal/inscription protocol is a functional and easy-to-reason-about initial choice of on-chain mechanism, it would also be premature to commit the kernel to these abstractions. Instead, Urbit should provide a general mechanism whereby comets can attest keys to any PKI source (chosen by a Jael `%listen` task) and peers can verify these attestations.
 
 The vast majority of Urbit's 128-bit address space is allotted to ephemeral identities. The 32 bits under Azimuth's domain constituting a DNS-centralized hierarchical network of memorable names will be untouched. We seek to upgrade the rest of the Urbit universe to allow for self-sovereign networking.
 
@@ -65,7 +65,8 @@ There are three main changes we propose to Arvo:
     - `xtr` is an additional data field not included in the tweak.
     - `sed` is the random seed used to generate the untweaked keypair (so that it can be re-generated)
 
-- Tweaked keys provide a pointer to PKI truth by baking that pointer directly into the networking key itself, ensuring that the two can never drift apart. 
+- Tweaking keys allows for a bidirectional cryptographic commitment between on-chain and off-chain (self-)attestations. The first generation of Groundwire comets, for example, use their tweak data to commit the key to the ordinal (indexed satoshi) that it will be inscribed on, as well as the name of the canonical agent used to validate it against Bitcoin chaindata. This serves to prevent a wide class of on-chain replay and spoofing attacks, as well as double-spawning across different on-chain attestation protocols if and when such usage takes place.
+- Further, in cases where the comet is not already known to Jael at point of first contact this tweak data can serve to notify the contacted ship of where the comet persists its PKI state and how to validate it at message time. As a protocol scales, there are edge cases where this is always applicable, such as incomplete initial sync by a newly-booted contactee. Additionally, there are useful protocols for which it is intended behavior, such as "confidential comets" that commit their attestation to the Bitcoin chain without advertising it via inscription of the plaintext data, such that passive watcher agents cannot detect it and these ships are always unknown to peers they have not yet directly communicated with.
 
 ### 3. Fief-based comet routing
 
