@@ -41,7 +41,7 @@ UIPs can be divided into the following categories:
 | [0120](./UIPS/UIP-0120.md) | HTTP Streaming            | ~rovnys-ricfer                 | Shipped   | Standards |
 | [0121](./UIPS/UIP-0121.md) | %pine Request at Latest   | ~rovnys-ricfer                 | Stagnant  | Standards |
 | [0122](./UIPS/UIP-0122.md) | %wild: Stateless jet registration | ~ritpub-sipsyl         | Stagnant  | Standards |
-| [0123](./UIPS/UIP-0123.md) | %loop hint: reify infinite loops as crashes | ~ritpub-sipsyl | Stagnant  | Standards |
+| [0123](./UIPS/UIP-0123.md) | %loop hint: reify infinite loops as crashes | ~ritpub-sipsyl | Review  | Standards |
 | [0124](./UIPS/UIP-0124.md) | Computation Timeout Hint  | ~lagrev-nocfep                 | Stagnant  | Standards |
 | [0125](./UIPS/UIP-0125.md) | %eyre/%iris Webssocket Support | ~fidwed-sipwyn            | Stagnant  | Standards |
 | [0126](./UIPS/UIP-0126.md) | Pierport Protocol         | ~littul-pocdev                 | Stagnant  | Process   |
@@ -54,6 +54,7 @@ UIPs can be divided into the following categories:
 | [0133](./UIPS/UIP-0133.md) | Urbit Testing Procedures  | ~hanfel-dovned, ~mopfel-winrux | Last Call | Process   |
 | [0134](./UIPS/UIP-0134.md) | Subsecond Timing Syntax   | ~lagrev-nocfep                 | Approved  | Standards |
 | [0135](./UIPS/UIP-0135.md) | Adjust @da format         | ~palfun-foslup                 | Approved  | Standards |
+| [0136](./UIPS/UIP-0136.md) | Comet Attestation         | ~hanfel-dovned, ~tinnus-napbus, ~bonbud-macryg, ~tondes-sitrym | Review | Standards |
 
 ## Background
 
