@@ -51,8 +51,9 @@ UIPs can be divided into the following categories:
 | [0130](./UIPS/UIP-0130.md) | Content Addressable Networking | ~hastuc-dibtux            | Stagnant  | Standards |
 | [0131](./UIPS/UIP-0131.md) | Ministry         | ~master-malwyl, ~rolryx, ~sarlev-sarsen | Draft     | Standards |
 | [0132](./UIPS/UIP-0132.md) | Planet Token              | ~master-malwyl                 | Draft     | Standards |
-| [0133](./UIPS/UIP-0133.md) | Urbit Testing Procedures  | ~hanfel-dovned, ~mopfel-winrux | Last Call | Process   
+| [0133](./UIPS/UIP-0133.md) | Urbit Testing Procedures  | ~hanfel-dovned, ~mopfel-winrux | Last Call | Process   |
 | [0134](./UIPS/UIP-0134.md) | Subsecond Timing Syntax   | ~lagrev-nocfep                 | Approved  | Standards |
+| [0135](./UIPS/UIP-0135.md) | Adjust @da format         | ~palfun-foslup                 | Approved  | Standards |
 
 ## Background
 
