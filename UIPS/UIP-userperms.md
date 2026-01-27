@@ -66,23 +66,33 @@ xx include difference between local vs remote vs both comms
 
 xx (request) notification type/api. should we differentiate between runtime-requested (optional) and update-requested (required)?
 
-xx upgrade behavior:
-xx new permissions types MUST be introduced across kelvin updates, and base's perm manager MUST receive appetizer that provides new perm's rendering?
-xx don't use perms within same kelvin release that introduces them. should have different types for "latest known" and "latest usable"
-
 ### Permissions and Desk Lifecycles
 
 A desk MUST be granted its required permissions before being set to live. (That is, before clay signals to gall that the agents on that desk should run.)
 Once live, a desk's required permissions MUST NOT be able to be revoked. To do so, the desk must first be suspended.
 A commit to a live desk MUST fail to apply if doing so would add required permissions that have not yet been granted.
 
-xx this failure MUST register the to-be-required permissions and send a perm request notification?
+xx this failure MUST register the to-be-required permissions as requested-for-upgrade and send a perm request notification
 
 Desks that are installed as part of the boot sequence MUST have all their required permissions granted automatically.
 
 Desks that are installed at the time of the upgrade which introduces userspace permissions MUST have all their required permissions granted automatically.
 
 xx possibility to mark desk as "trusted", auto-granting all perms requests?
+
+### Permission Type Upgrades
+
+To ensure it is always possible to present and reason about permissions, permission type definitions and usage is structured such that an "appetizer" update is always required.
+
+There MUST be two versions of the permission type: one representing the latest supported permissions (A), and one representing the permissions that will be supported in the next kelvin upgrade (B). Any kelvin upgrade MUST replace type A with that of B, and MAY change type B to be any new permission type.
+
+Type A MUST be used for all instances of permissions described in this specification, with the following exceptions:
+- The `%seal` task MUST support _granting_ permissions of both type A and B in clay.
+  - But only type A permissions should _apply_ in gall.
+- Permission requests originating from a desk upgrade attempt (see Lifecycles above) MAY use type B permissions.
+- Permission management interfaces MUST support rendering both type A and B permissions.
+
+To allow for manual "step-wise" kelvin upgrading where necessary, authoritative base desk sources SHOULD use clay labels to aid discovery and downloading of specific kelvin releases.
 
 ### Presentation and Management
 
@@ -138,8 +148,6 @@ xx kernel-style subscriptions follow established pattern, see examples
 
 xx scoping
 
-xx kelvin upgrade / changed permission types discussion
-
 ### Permissions and Desk Lifecycles
 
 Clay already manages desk "liveness" status and transitions. Permissions, applying at the desk level, overlap with this nicely.
@@ -148,6 +156,12 @@ xx desk liveness requirements
 Automatically granting required permissions for desks present/installed during the boot sequence ensures the immediate post-boot state is "complete" according to the sequence's intent, without requiring additional permission-granting events to be formalized into the boot sequence.
 
 Automatically granting required permissions for desks present/installed during the permissions upgrade ensures the upgrade can happen without user intervention.
+
+### Permission Type Upgrades
+
+xx kelvin upgrade / changed permission types discussion
+xx step-wisdom isn't formal but that can't stop us, there is precedent for awkward "choke-point" kelvins
+xx we don't expect to change the permission type very often
 
 ### Presentation and Management
 
