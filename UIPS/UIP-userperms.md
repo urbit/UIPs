@@ -1,6 +1,6 @@
 ---
 title: Userspace Permissions
-description: Limiting capabilities of gall agents, and related work.
+description: Restricting capabilities of gall agents, and related work.
 author: ~palfun-foslup
 status: Draft
 type: Standards Track
@@ -16,9 +16,7 @@ Gall agents have always had access to the entirety of the kernel API, as well as
 
 ## Status
 
-xx working group, subject to model changes there
-xx draft, more detail forthcoming after discussion and gall model solidification
-xx no specifics about agent effects, subject to gall model changes
+Draft UIP in the process of being refined. At the same time, implementation is under active development by members of the Tentative Gall Working Group. Concrete type specifications in this UIP will depend on the outcome of design work in that Working Group.
 
 
 ## Motivation
@@ -32,9 +30,9 @@ This particular known security hole has been a big factor in preventing developm
 
 ## Specification
 
-We first give an overview of the behavior of permissions. Then we describe the requirements made of the API, the interplay between permissions and desk and lifecycles, we make recommendations about permission presentation and management, and describe best practices for userspace developers regarding permission requirements and requests.
+We first give an overview of the behavior of permissions. Then we describe the requirements made of the API, the interplay between permissions and desk lifecycles, we make recommendations about permission presentation and management, and describe best practices for userspace developers regarding permission requirements and requests.
 
-This is not a capabilities-based model. This does not aim to solve the "confused deputy" problem. Local provenance is utilized to realize this model. This does not aim to extend provenance over the network in any way.
+This model puts restrictions on what agents can do. It does not let agents restrict what can be done to them. This is not a capabilities-based model. This does not aim to solve the "confused deputy" problem. Local provenance is utilized to realize this model. This does not aim to extend provenance over the network in any way.
 
 The key words "MUST", "MUST NOT", "REQUIRED", "SHALL", "SHALL NOT", "SHOULD", "SHOULD NOT", "RECOMMENDED", "NOT RECOMMENDED", "MAY", and "OPTIONAL" in this document are to be interpreted as described in RFC 2119 and RFC 8174.
 
@@ -50,7 +48,7 @@ Agents MAY dynamically request optional permissions for their desk at runtime. T
 
 The `$bowl:gall` MUST include the permissions available to the agent at the time of its invocation. The standard library SHOULD provide helpers for checking a card or scry path against those permissions.
 
-When an agent emits a `%pass` or performs a `.^` scry for which it doesn't have a corresponding permission, the agent invocation MUST be treated as having crashed. During `+on-init` and `+on-load`, this crashes the whole event. During all other invocations, this calls the agent's `+on-fail` with `%not-permitted`.
+When an agent emits a `%pass` or performs a `.^` scry for which it does not have a corresponding permission, the agent invocation MUST be treated as having crashed. During `+on-init` and `+on-load`, this crashes the whole event. During all other invocations, this calls the agent's `+on-fail` with `%not-permitted`.
 
 Both gall and clay need to know the current permission state (required, requested, granted) for a desk. Because permissions apply at the desk level and exist even when no agents are running, clay MUST be treated as the canonical store, with gall subscribing to clay for permission updates.
 
@@ -59,26 +57,23 @@ Both gall and clay need to know the current permission state (required, requeste
 Clay MUST support granting and revoking permissions through a `%seal` task and requesting permissions through a `%pine` task.
 To support userspace reactivity (and gall's syncing), clay MUST expose a kernel-style subscription endpoint for notifications about permission requests and updates through a `%ward` task, and closing of that subscription through a `%wink` task. Agents that want to use this MUST be granted the corresponding permission.
 
-The type that describes a permission MUST allow for "scoping" if possible. That is to say, for example, a permission for a resource at a path must apply to resources at _and below_ the given path. xx example of (unit resource-id)
+The type that describes a permission MUST allow for "scoping" if possible. That is to say, for example, a permission to read resources from a path namespace must be able to specify a path at _and below_ which read permission is to be granted. Or, a permission for interacting with a named resource must optionally specify the name of the resource, such that it allows access to either a specific resource, or all possible resources.
+
+Where possible, the permission type MUST distinguish between local-only and over-the-network permissions. Local-only permissions MUST be "scopeable" by agent and/or mark. Network permissions MUST NOT be scopeable at all.
 
 xx concrete type description once gall api settles
-xx include difference between local vs remote vs both comms
 
-xx (request) notification type/api. should we differentiate between runtime-requested (optional) and update-requested (required)?
+Clay MUST track permission requests in a way that distinguishes between runtime-requested optional permissions and install- or commit-blocking required permissions. Requested optional permissions MUST be remembered as such even after they have been granted.
 
 ### Permissions and Desk Lifecycles
 
 A desk MUST be granted its required permissions before being set to live. (That is, before clay signals to gall that the agents on that desk should run.)
 Once live, a desk's required permissions MUST NOT be able to be revoked. To do so, the desk must first be suspended.
-A commit to a live desk MUST fail to apply if doing so would add required permissions that have not yet been granted.
-
-xx this failure MUST register the to-be-required permissions as requested-for-upgrade and send a perm request notification
+A commit to a live desk MUST fail to apply if doing so would add required permissions that have not yet been granted. This failure (or anticipation of it) MUST register the to-be-required permissions as requested-for-upgrade and send the corresponding permission request notification.
 
 Desks that are installed as part of the boot sequence MUST have all their required permissions granted automatically.
 
 Desks that are installed at the time of the upgrade which introduces userspace permissions MUST have all their required permissions granted automatically.
-
-xx possibility to mark desk as "trusted", auto-granting all perms requests?
 
 ### Permission Type Upgrades
 
@@ -106,7 +101,6 @@ When presenting permissions to the user, if the agent affected by a permission i
 When an agent affected by a permission is not locally known, a permission manager MAY prevent the granting of the permission, even if this would prevent installation.
 
 The recommendations around "known" agents SHOULD only apply to local agent interactions. Interactions that go over the network SHOULD be presented generically as "sharing data" or "reading".
-xx does that imply "poke over the network" and "watch over the network" perms shouldn't specify agent name? can we meaningfully narrow by mark?
 
 When an agent affected by a permission is on the desk requesting the permission, a permission manager MAY collate it with similar permissions, or hide them completely.
 
@@ -119,10 +113,16 @@ For permissions without which the desk can reasonably function, these should be 
 
 Developers SHOULD request permissions at the smallest reasonable scope. For example, when subscribing at paths of the shape `/data/[some-id]`, request permissions for `/data`, not for `/` (too broad), and not for each individual `/data/whatever` (too narrow).
 
+### Spider and Khan
+
+Spider, at `/app/spider` on the base desk, SHOULD be made to restrict the effects and scries of its threads by the permissions granted to the caller of the thread. It can determine the relevant provenance from the `sap.bowl`, retrieve the corresponding desk from gall if necessary, and scry current permission state out of clay.
+
+Khan SHOULD ensure that it passes on the appropriate provenance when it invokes spider.
+
 
 ## Rationale
 
-Permissions apply at the desk level, not at the agent level, because desks map more closely to the concept of "apps" than agents do. A desk may contain many agents, but they're commonly intended to function together as a pre-packaged suite of software.
+Permissions apply at the desk level, not at the agent level, because desks map more closely to the concept of "apps" than agents do. A desk may contain many agents, but they are commonly intended to function together as a pre-packaged suite of software.
 Desks are less volatile than agents. Agents within a desk may or may not be running, and an agent may move from running on one desk, to running on a different desk.
 Lastly, desks are more closely tied to specific publishers than agents are. That tie is not absolute though (only "running foreign desks" would be), so switching sources for a desk remains a risk. See also security considerations below.
 
@@ -135,9 +135,9 @@ There is separation between required/static and optional/dynamic permissions for
 - Specifying permissions ahead-of-time helps users make more-informed decisions about whether to install any given software.
 - Necessary permissions are not always knowable ahead of time. This is almost necessarily true for software that intends to interact with other apps in a generic way: it cannot know what apps the user will make it interact with.
 
-Treating agent invocations from which the agent tries to do something it does not have permission for as crashes matches the behavior of `.^` on non-existent paths and makes it obvious that the entire invocation is null and void. The latter is important to avoid internal inconsistencies in agents. xx better phrasing
-The alternative would be to inject a "permission nack" into `+on-agent` or `+on-arvo` to notify them that their effect was prevented from executing. This cannot be done for `.^`, and results in more "loose ends" for developers to handle. xx phrasing
-Developers should be encouraged to check permissions prior to emitting effects so they can handle failure cases eagerly/synchronously, rather than firing them off indiscriminately and handling failures lazily/asynchronously.
+Treating agent invocations as crashes when effects would violate permissions matches the behavior of `.^` on non-existent or not-allowed paths and makes it obvious that the entire invocation is null and void. The latter is important to avoid internal inconsistencies in agents.
+The alternative would be to inject a "permission nack" into `+on-agent` or `+on-arvo` to notify them that their effect was prevented from executing. But this cannot be done for `.^` read failures, and proliferates error handling throughout agent code.
+Developers should be taught and strongly encouraged to check permissions prior to emitting effects so they can handle failure cases eagerly/synchronously, rather than firing them off indiscriminately and handling failures lazily/asynchronously.
 (To improve developers' ability to handle resulting `+on-fail` calls appropriately, that interface should be expanded to provide more details about the failed invocation. However, doing so is out of scope for this UIP.)
 
 ### Interface and Types
@@ -146,12 +146,18 @@ Considering the possibility of building "app managers" in userspace, it is impor
 
 xx kernel-style subscriptions follow established pattern, see examples
 
-xx scoping
+The permission type must allow scoping so that developers do not need to request permissions broader than what they will be using, and conversely such that a generic permission can be requested.
+For example, no need to request permission to write to all of the files on a desk if you only want to update `/log.txt`. And conversely, no use specifying any path at all if the main feature revolves around editing arbitrary files.
+
+Separating local-only and over-the-network permissions is important, because behavior of local agents is knowable, but that is not the case for agents on other ships. As such, putting any restrictions on effects that result in network activity isn't meaningful beyond that network activity happening or not.
+In the presence of stateful reads (i.e. `+on-watch`), there is also no difference between reads and writes from a security (data leaking) perspective, but it may still be good to make that distinction for semantic reasons.
+
+Separating blocking (required) and non-blocking (optional) permission requests is important for UX purposes. Remembering non-blocking permission requests even after the corresponding permission has been granted helps permission management interfaces to display them separately as toggleable.
 
 ### Permissions and Desk Lifecycles
 
 Clay already manages desk "liveness" status and transitions. Permissions, applying at the desk level, overlap with this nicely.
-xx desk liveness requirements
+Putting restrictions on liveness transitions of and file changes on desks is necessary to maintain the invariant of desk code being able to assume its required permissions.
 
 Automatically granting required permissions for desks present/installed during the boot sequence ensures the immediate post-boot state is "complete" according to the sequence's intent, without requiring additional permission-granting events to be formalized into the boot sequence.
 
@@ -159,9 +165,15 @@ Automatically granting required permissions for desks present/installed during t
 
 ### Permission Type Upgrades
 
-xx kelvin upgrade / changed permission types discussion
-xx step-wisdom isn't formal but that can't stop us, there is precedent for awkward "choke-point" kelvins
-xx we don't expect to change the permission type very often
+The upgrade approach, requiring an "appetizer" update to prepare for permission type transitions, was chosen as the solution with the smallest scope and lowest complexity. Providing workable UX, which can always present blocking permissions in a legible way, necessitates a way to get "ahead" of incoming changes.
+
+One can imagine, in theory, building files from the newer version of the desk without upgrading to it, and using that newer version of the desk to translate the relevant types and utilities back to a format legible to the old version of the desk. (That is to say, downgrade the type of type if needed.) This is neither simple nor self-contained.
+
+One can imagine enforcing that `/desk.seal` files cannot change at the same time as `/sys.kelvin` files, or other approaches in that direction. This would result in a similar "appetizer" requirement, but for each desk individually rather than the kernel desk alone.
+
+There is no mechanism for "[stepwisdom](https://gist.github.com/philipcmonk/de5ba03b3ea733387fd13b758062cfce)", but there is precedent for awkward manually step-wise upgrade paths. Ergonomics for that can be upgraded slightly be making use of clay's revision labels. We also do not expect to change the permission type very often.
+
+xx consider and discuss interaction with kelvin shimming
 
 ### Presentation and Management
 
@@ -176,6 +188,10 @@ Permissions concerning agents on other ships should be presented generically, be
 
 Requesting permissions ahead-of-time improves both developer and user ergonomics: the developer never has to check permission status, and the user does not need to be prompted for those permissions after installing the app.
 Requesting permissions dynamically grants users meaningful control over the behavior of the software they run, in practice letting them en- or disable features according to their level of trust in the software.
+
+### Spider and Khan
+
+Spider implements a "userspace within userspace". As such, if it wants to restrict the capabilities of the threads it runs, it itself should be responsible for doing so. Restricting by the thread's caller rather than the thread provider (source desk) prevents escalations and remain possible for inline threads.
 
 
 ## Backwards Compatibility
@@ -200,9 +216,13 @@ At the time of writing, that line of work is being pursued, and a working protot
 There are many seemingly-narrow permissions that are functionally equivalent to root, usually by interacting with something on the base desk. Care should be taken to enumerate all of these and inform the user about them appropriately whenever possible. A non-exhaustive list of such permissions is given below.
 
 - pass `%dill` a `%belt`
+  - to simulate keystrokes.
 - pass `%clay` a `[%park %base ...]`
+  - to modify base desk (fully trusted) source code.
 - poke `%hood` with `&helm-pass`
-- poke `%herm` with `%herm-task`
+  - to enact arbitrary kernel tasks.
+- poke `%herm` with `&herm-task`
+  - to simulate keystrokes, by virtue of `%herm` being allowed to do so.
 
 ### Desk Sources
 
