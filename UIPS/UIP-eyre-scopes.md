@@ -1,0 +1,261 @@
+---
+title: Eyre Scopes
+description: Desk provenance for eyre authentication, for userspace permissions.
+author: ~palfun-foslup
+status: Draft
+type: Standards Track
+category: Kernel
+created: 2026-02-25
+---
+
+
+## Abstract
+
+In order to extend userspace permissions into HTTP contexts, eyre must provide secure client provenance. We propose assigning desk scopes to authentication sessions, and isolating these sessions in browser contexts by assigning each desk its own subdomain. We reduce UX impact by automating subdomain authentication for browsers, and support OAuth-style authentication for standalone clients.
+
+
+## Status
+
+Draft UIP with some expansion remaining, but the essence of the spec is present. The Eyre Security Working Group is actively refining the implementation.
+
+
+## Motivation
+
+Userspace permissions ([UIP-userperms](./UIP-userperms.md)) restricts the capabilities of agents per desk. However, agent code isn't the only place from which system interactions originate: eyre exposes HTTP endpoints that allow interacting with userspace. Eyre's authentication distinguishes between different ship identities, but otherwise treats every session as "root": any requested interaction gets performed unconditionally.  
+Giving eyre's authentication some form of desk provenance lets userspace permissions apply to HTTP interactions.
+
+xx rewrite
+Client code is generally served by desks themselves. Enabling permission checks on interactions from HTTP is necessary. However, given that most commonly all client code is accessed from the same domain, they all have access to the same cookies. (Even with `Http-Only` cookies, that don't allow the _value_ to be read out, those cookies can still be _sent_ with requests.) Giving each desk a unique cookie isn't enough. We must ensure those cookies remain isolated, that client code from one desk can't use the cookies from another desk.
+
+
+## Specification
+
+The key words "MUST", "MUST NOT", "REQUIRED", "SHALL", "SHALL NOT", "SHOULD", "SHOULD NOT", "RECOMMENDED", "NOT RECOMMENDED", "MAY", and "OPTIONAL" in this document are to be interpreted as described in RFC 2119 and RFC 8174.
+
+### Request handling
+
+#### Domains
+
+Eyre MUST store a set of "known domains", for which it expects to handle incoming requests. Eyre MUST support adding and removing domains from this set, and setting the set wholesale, through a `%turf` task. This set MUST contain `localhost` by default.
+
+Per the RFC2616 specification, HTTP requests must have a `Host` header. Eyre already reads this and, for requests coming from the localhost, respects the `Forwarded` header's `Host` field if present. If this process does not deliver a target hostname for the request, eyre MUST serve a `400` bad request response, again per RFC2616. Eyre MUST support cases where the `Host` field contains an IP address rather than a domain name. The bulk of this specification assumes a domain name, for the special handling of IP addresses see [the IP address access section](#ip-address-access).
+
+Eyre MUST define a "**scope**" as `(unit desk)`, where `~` represents "root", and a value represents a specific desk scope. Eyre MUST deduce the target scope for a request based on the domain name provided in its `Host` header in the following way:
+1. If the domain name is a known domain, the target scope is root.
+2. If the domain name is more than one segment long, and removing the smallest segment (i.e. `ex.ample.org` -> `ample.org`) results in a known domain, the target scope is the smallest segment interpreted as a desk name (i.e. `ex`).
+3. Else, there is no target scope.
+
+If a request does not have a target scope, eyre MUST serve a `421` "misdirected request" response.
+
+Eyre MUST define a "**path owner**" as `(unit desk)`, where `~` represents "eyre", and a value represents a specific desk. Eyre MUST deduce the path owner for a request based on the path of its URL in the following way:
+1. Resolve the URL to its binding.
+2. If the binding maps to a `%gen` action, the path owner is the desk the generator comes from.
+3. If the binding maps to an `%app` action, the path owner is the desk the agent is running from.
+4. Else, the path owner is eyre.
+
+If the path owner is not eyre, and the path owner does not match the scope, eyre MUST redirect the request to the domain name which would resolve to the appropriate scope using a `307` "temporary redirect" response.  
+(For example, `ship.io/myapp` to `mydesk.ship.io/myapp`, or `mydesk.ship.io/~/login` to `ship.io/~/login`.)
+
+If the previous checks have not served a response, eyre MUST proceed to handle the request's authentication.
+
+#### Authentication
+
+The authentication `$session` type MUST include a `scopes=(each (set @uv) @uv)`, where the `%&` case lets root sessions track their corresponding child sessions, and the `%|` case lets child sessions point back to their parent session. More on this in [subdomain authentication](#subdomain-authentication).
+
+The `$identity` associated with an authentication `$session` MUST, in addition to its authentication method and corresponding `@p`, contain a `scope=(unit desk)` to indicate the scope of the session.
+
+When sending interactions to gall, eyre MUST include the scope in its provenance path (in `$sack`, in the `%deal` task). Gall MUST check and pass along this provenance as appropriate. Spider MUST do the same.
+
+```hoon
+::  $session: server side data about a session
+::
++$  session
+  $:  ::  identity: authentication level & id of this session
+      ::
+      =identity
+      ::  scopes:
+      ::    %&  this is a root session, and these are its child tokens
+      ::    %|  this is a child session, this is its parent
+      ::
+      ::NOTE  ?=(~ scope.identity) should be %& here, and the inverse.
+      ::      if that's not the case, that's a bug!
+      scopes=(each (set @uv) @uv)
+      ::
+      ...
+  ==
+::  $identity: authentication method & @p, w/ scope
+::
++$  identity
+  $:  $=  who
+      $~  [%ours ~]
+      $%  [%ours ~]                                   ::  local, root
+          [%fake who=@p]                              ::  guest id
+          [%real who=@p]                              ::  authed cross-ship
+      ==
+    ::
+      scope=(unit desk)
+  ==
+```
+
+If the scope of the request's authentication doesn't match the request's scope, the authentication MUST be considered invalid.  
+If invalid or no authentication is provided on a desk scope request, eyre MUST initiate [subdomain authentication](#subdomain-authentication) in response to the request by serving a `307` "temporary redirect". Eyre MUST NOT mint guest sessions for desk scope requests.  
+xx or 403 for posts, puts, etc?
+
+### Subdomain authentication
+
+Eyre MUST serve the `/~/login` page exclusively on the root scope. To obtain a cookie for desk scopes, eyre MUST implement a `/~/holm` endpoint and use it in the following flow.
+
+1. A request to `/~/holm` comes in on the root scope. (Assume a validly authenticated request.) The URL has the shape of `/~/holm/[scope](target-url)`.
+2. Eyre generates a random temporary token, `tmp-token`, stores it in state along with the requester's session identifier, and sets a 30-second expiry timer.
+3. Eyre serves a `307` "temporary redirect" to `//[scope].[hostname]/~/holm/[tmp-token][target-url]`.
+4. That request to `/~/holm` comes in on the desk scope.
+5. Eyre checks the `tmp-token` from the request URL against its state. If a match exists, it mints a new child session, with the matching session as its parent.
+6. Eyre serves a `307` "temporary redirect" to the `target-url`, including a `set-cookie` header for the newly minted session.
+
+For requests with out-of-spec URL shapes, eyre MUST serve a `400` "bad request" response.
+
+When a session with the root scope gets expired, all its "child" sessions MUST be expired along with it.
+
+### Scoped OAuth-style authentication
+
+Eyre MUST support OAuth-style authentication at the `/~/auth` endpoint. This endpoint MUST only be accessible on the root scope. If the request is not authenticated as the host ship, eyre MUST redirect to `/~/login`.
+
+On GET requests, the endpoint MUST read the following query parameters from the URL:
+- `scope`: desk scope being requested,
+- `return`: URI to redirect to upon completion,
+- `client`: optional, name of the client requesting authentication.
+
+Eyre MUST serve a dialog page describing the authentication request and present the user with "approve" and "deny" buttons. Clicking either MUST submit a POST request containing the `scope` and `return` values.
+
+On POST requests, eyre MUST retrieve `scope` and `return` values from the request body.  
+If an `approve` value is present, eyre MUST mint a new session and serve a `303` "see other" redirect to the `return` value's URI, appending `?token=` followed by the minted session's identifier.  
+Else, eyre MUST serve a `303` "see other" redirect to the `return` value's URI, appending `?error=rejected`.
+
+### IP address access
+
+Eyre MUST store a flag indicating whether it will respond to requests that have an IP address (rather than a domain name) in their `Host` header. This flag MUST be disabled by default.
+
+If the flag is disabled, eyre MUST serve a `421` "misdirected request" responses to requests on IP addresses.
+
+If the flag is enabled, eyre MUST handle requests on IP addresses as per normal, with the following behavioral changes:
+- Every request MUST be treated as targetting the root scope.
+- Every minted authentication session MUST have the root scope.
+- Requests to paths owned by a desk scope MUST respond directly, instead of redirecting to a subdomain.
+
+Users SHOULD be warned that enabling the flag and accessing third party apps over an IP address makes them exceedingly vulnerable to malicious software. Setup documentation SHOULD NOT recommend enabling the flag as part of normal setup procedure. For local machine setups, documentation SHOULD always instruct to visit `localhost`, never `127.0.0.1`.
+
+### SSL certificates
+
+Eyre MUST support storing SSL certificates for multiple domains. Eyre MUST communicate these to the runtime in its `%set-config` gift. The runtime's `http.c` MUST apply the appropriate certificate based on the request's hostname.
+
+Eyre SHOULD implement a subscription endpoint for listening to changes to the set of known domains. ACME agent SHOULD listen to this endpoint and attempt automatic certificate setup for added domains.
+xx can't (generally) do wildcard certs, so, do we want to have it do this per-desk? if not, should remove this recommendation
+
+### Ancillary services
+
+ACME agent SHOULD be updated to support negotiating SSL certificates for IP addresses.
+
+The `arvo.network` DNS service provider SHOULD be updated to facilitate setting records for the DNS-01 ACME challenge type. DNS and ACME agents SHOULD be updated to make use of this.
+
+Hosting services SHOULD ensure they handle requests to subdomains appropriately. They SHOULD NOT rewrite URLs in ways that result in all requests to a ship having the same origin from a client's perspective.
+
+
+## Rationale
+
+The approach taken here has its origin in [`origins.txt`](https://gist.github.com/Fang-/18ce946a2bb33bada3f10bdb3546bb55). Its description of the problem and reasoning towards this solution still applies. We opted for subdomains instead of ports to differentiate origins because outward-facing ports are limited in number, very difficult to support in hosting environments, and would require very extensive runtime changes.
+
+xx secure cookie separation only possible by origin. cookie attributes alone (`Domain`, `Path`, CHIPS, and others) are not sufficient for isolating cookies
+
+xx triple redirect simple, effective, fast, transparent
+xx tmp token is plenty safe, short-lived
+
+xx oauth-style auth is necessary for standalone clients so that user doesn't need to type +code into the client
+
+xx assumption is browsers support `sub.localhost`
+
+xx we keep the eyre binding namespace as a flat path-based mapping, instead of giving each desk its own namespace, to ensure that navigating to `/some-other-app` always works and ends up in the right place. important for cross-app linking
+
+xx eyre must "know" localhost by default because ...
+
+### Attempts at hiding subdomains
+
+Because of the UX impact of making subdomains visible to the user, we explored different approached for hiding the subdomains from the user. None of them worked out in practice. We briefly describe them below.
+
+xx considered iframes for hiding subdomains, but impossible because of browser security behavior: chrome and brave treat
+
+xx considered hiding subdomains through browser plugin, but that won't work on mobile web
+
+
+## Backwards compatibility
+
+A common pattern for serving files from a desk to the client relies on the docket agent. This agent runs from the landscape desk. As a result, in the new model, all client files would be served under the landscape scope.  
+Desks will need to take responsibility for serving their own files. In addition to bespoke one-off solutions, generic file-serving software could be developed to facilitate this. (For example, [foo-fileserver](https://github.com/Fang-/suite/blob/wip/owntracks/app/foo-fileserver.hoon).) This is a good opportunity to return from glob-based file-serving to clay-based file-serving, now that tombstoning is real.
+
+xx setup docs will need to be updated. should we make a flowchart?
+
+xx mobile clients could keep using +code auth, but they shouldn't
+
+xx hosting environments might need to update their infra to support the subdomains
+
+xx ip mode is an out for self-hosted setups that cannot deal with domains/dns (primarily, ships on the local network)
+
+
+## Security considerations
+
+xx cookie exfiltration, browser dependency
+xx `SameSite` cookie attribute: `Strict` is best, but `Lax` would work too
+
+xx faking the oauth page, self-phishing
+
+xx others? red-teaming effort?
+
+
+## Appendices
+
+### Appendix A: eyre endpoints
+
+url | session required? | root or all scopes? | description
+--- | --- | --- | ---
+`/~/holm`    | y | all  | scoped auth flow
+`/~/auth`    | y | root | oauth-like flow
+`/~/host`    | n | all  | host ship
+`/~/name`    | y | all  | authenticated identity
+`/~/login`   | n | root | login form & logout handling (xx retain?)
+`/~/logout`  | n | all  | logout handling
+`/~/eauth`   | y | root | cross-ship authentication
+`/~/channel` | y | all  | userspace interactions
+`/~/scry`    | y | all  | userspace reads
+`/~/ip`      | n | all  | requester ip
+`/~/boot`    | n | all  | jam of network state of ship in url (or 404)
+`/~/sponsor` | n | all  | galaxy-level sponsor of ship in url
+
+### Appendix B: livenet /~/login POST request handling
+
+- 400 responses serve the `/~/login` page as body
+- no or invalid body (query/form data encoding): **400**
+- `eauth` present in body:
+  - no or invalid `@p` `name` present in body: **400**
+  - delegate to eauth, server side flow (NOTE: even if `name` is `our`!)
+- no or invalid `password` in body: **400**
+- close session that made the request
+- start `%local` session
+- re-associate the connection (for `+handle-response`)
+- potentially overwrite public hostname
+- put session token into response body
+  - response header *always* gets `set-cookie` with session token
+- if no redirect: **200**
+- if redirect: **303** with `location` header
+
+### Appendix C: livenet /~/logout request handling
+
+- any method goes
+- every response is a **303** redirect to `/~/login`
+- body parsed as query/form data args, fallback to empty list
+- if `sid` not present, fallback to requester's session id
+- if `host` present, it's the eauth host, `sid` is the remote session nonce:
+  - send an eauth `%shut` to the host, put that into the host's pending msgs queue
+  - serve response
+- if `all` present, will close all sessions with the same identity
+- if `sid` is the requester's own session id, include a `set-cookie` header in the response
+- close the requested session(s) in state as requested
+- serve response
