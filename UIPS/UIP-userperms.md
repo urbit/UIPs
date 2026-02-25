@@ -54,7 +54,7 @@ Both gall and clay need to know the current permission state (required, requeste
 
 ### Interface and Types
 
-Clay MUST support granting and revoking permissions through a `%seal` task and requesting permissions through a `%pine` task.
+Clay MUST support granting and revoking permissions through a `%seal` task and requesting permissions through a `%pine` task.  
 To support userspace reactivity (and gall's syncing), clay MUST expose a kernel-style subscription endpoint for notifications about permission requests and updates through a `%ward` task, and closing of that subscription through a `%wink` task. Agents that want to use this MUST be granted the corresponding permission.
 
 The type that describes a permission MUST allow for "scoping" if possible. That is to say, for example, a permission to read resources from a path namespace must be able to specify a path at _and below_ which read permission is to be granted. Or, a permission for interacting with a named resource must optionally specify the name of the resource, such that it allows access to either a specific resource, or all possible resources.
@@ -67,8 +67,8 @@ Clay MUST track permission requests in a way that distinguishes between runtime-
 
 ### Permissions and Desk Lifecycles
 
-A desk MUST be granted its required permissions before being set to live. (That is, before clay signals to gall that the agents on that desk should run.)
-Once live, a desk's required permissions MUST NOT be able to be revoked. To do so, the desk must first be suspended.
+A desk MUST be granted its required permissions before being set to live. (That is, before clay signals to gall that the agents on that desk should run.)  
+Once live, a desk's required permissions MUST NOT be able to be revoked. To do so, the desk must first be suspended.  
 A commit to a live desk MUST fail to apply if doing so would add required permissions that have not yet been granted. This failure (or anticipation of it) MUST register the to-be-required permissions as requested-for-upgrade and send the corresponding permission request notification.
 
 Desks that are installed as part of the boot sequence MUST have all their required permissions granted automatically.
@@ -108,7 +108,7 @@ Permissions that are functionally equivalent to root access (see Security Consid
 
 ### Requesting Permissions
 
-Userspace developers SHOULD require (through the `/desk.seal` file) permissions that are essential to the core functioning of their desks.
+Userspace developers SHOULD require (through the `/desk.seal` file) permissions that are essential to the core functioning of their desks.  
 For permissions without which the desk can reasonably function, these should be requested and checked at runtime (on-init/load, or on-demand). Developers SHOULD use the standard library-provided utilities for checking permission availability.
 
 Developers SHOULD request permissions at the smallest reasonable scope. For example, when subscribing at paths of the shape `/data/[some-id]`, request permissions for `/data`, not for `/` (too broad), and not for each individual `/data/whatever` (too narrow).
@@ -122,8 +122,8 @@ Khan SHOULD ensure that it passes on the appropriate provenance when it invokes 
 
 ## Rationale
 
-Permissions apply at the desk level, not at the agent level, because desks map more closely to the concept of "apps" than agents do. A desk may contain many agents, but they are commonly intended to function together as a pre-packaged suite of software.
-Desks are less volatile than agents. Agents within a desk may or may not be running, and an agent may move from running on one desk, to running on a different desk.
+Permissions apply at the desk level, not at the agent level, because desks map more closely to the concept of "apps" than agents do. A desk may contain many agents, but they are commonly intended to function together as a pre-packaged suite of software.  
+Desks are less volatile than agents. Agents within a desk may or may not be running, and an agent may move from running on one desk, to running on a different desk.  
 Lastly, desks are more closely tied to specific publishers than agents are. That tie is not absolute though (only "running foreign desks" would be), so switching sources for a desk remains a risk. See also security considerations below.
 
 The `%base` desk is exempt from permission checking because it runs the kernel. Any code that makes it onto the `%base` desk is implicitly trusted. If the `%base` desk code cannot be trusted, neither can the permissions implementation.
@@ -135,9 +135,9 @@ There is separation between required/static and optional/dynamic permissions for
 - Specifying permissions ahead-of-time helps users make more-informed decisions about whether to install any given software.
 - Necessary permissions are not always knowable ahead of time. This is almost necessarily true for software that intends to interact with other apps in a generic way: it cannot know what apps the user will make it interact with.
 
-Treating agent invocations as crashes when effects would violate permissions matches the behavior of `.^` on non-existent or not-allowed paths and makes it obvious that the entire invocation is null and void. The latter is important to avoid internal inconsistencies in agents.
-The alternative would be to inject a "permission nack" into `+on-agent` or `+on-arvo` to notify them that their effect was prevented from executing. But this cannot be done for `.^` read failures, and proliferates error handling throughout agent code.
-Developers should be taught and strongly encouraged to check permissions prior to emitting effects so they can handle failure cases eagerly/synchronously, rather than firing them off indiscriminately and handling failures lazily/asynchronously.
+Treating agent invocations as crashes when effects would violate permissions matches the behavior of `.^` on non-existent or not-allowed paths and makes it obvious that the entire invocation is null and void. The latter is important to avoid internal inconsistencies in agents.  
+The alternative would be to inject a "permission nack" into `+on-agent` or `+on-arvo` to notify them that their effect was prevented from executing. But this cannot be done for `.^` read failures, and proliferates error handling throughout agent code.  
+Developers should be taught and strongly encouraged to check permissions prior to emitting effects so they can handle failure cases eagerly/synchronously, rather than firing them off indiscriminately and handling failures lazily/asynchronously.  
 (To improve developers' ability to handle resulting `+on-fail` calls appropriately, that interface should be expanded to provide more details about the failed invocation. However, doing so is out of scope for this UIP.)
 
 ### Interface and Types
@@ -145,18 +145,19 @@ Developers should be taught and strongly encouraged to check permissions prior t
 Considering the possibility of building "app managers" in userspace, it is important for the kernel to expose permission information and management capabilities.
 
 xx kernel-style subscriptions follow established pattern, see examples
+xx example: %tire
 
-The permission type must allow scoping so that developers do not need to request permissions broader than what they will be using, and conversely such that a generic permission can be requested.
+The permission type must allow scoping so that developers do not need to request permissions broader than what they will be using, and conversely such that a generic permission can be requested.  
 For example, no need to request permission to write to all of the files on a desk if you only want to update `/log.txt`. And conversely, no use specifying any path at all if the main feature revolves around editing arbitrary files.
 
-Separating local-only and over-the-network permissions is important, because behavior of local agents is knowable, but that is not the case for agents on other ships. As such, putting any restrictions on effects that result in network activity isn't meaningful beyond that network activity happening or not.
+Separating local-only and over-the-network permissions is important, because behavior of local agents is knowable, but that is not the case for agents on other ships. As such, putting any restrictions on effects that result in network activity is not meaningful beyond that network activity happening or not.  
 In the presence of stateful reads (i.e. `+on-watch`), there is also no difference between reads and writes from a security (data leaking) perspective, but it may still be good to make that distinction for semantic reasons.
 
 Separating blocking (required) and non-blocking (optional) permission requests is important for UX purposes. Remembering non-blocking permission requests even after the corresponding permission has been granted helps permission management interfaces to display them separately as toggleable.
 
 ### Permissions and Desk Lifecycles
 
-Clay already manages desk "liveness" status and transitions. Permissions, applying at the desk level, overlap with this nicely.
+Clay already manages desk "liveness" status and transitions. Permissions, applying at the desk level, overlap with this nicely.  
 Putting restrictions on liveness transitions of and file changes on desks is necessary to maintain the invariant of desk code being able to assume its required permissions.
 
 Automatically granting required permissions for desks present/installed during the boot sequence ensures the immediate post-boot state is "complete" according to the sequence's intent, without requiring additional permission-granting events to be formalized into the boot sequence.
@@ -177,7 +178,7 @@ xx consider and discuss interaction with kelvin shimming
 
 ### Presentation and Management
 
-Permission managers are advised to prevent the granting of permissions affecting unknown agents. Disregarding this advice saddles the user with an unanswerable question: what does it mean to read from or write to an app I have no awareness of?
+Permission managers are advised to prevent the granting of permissions affecting unknown agents. Disregarding this advice saddles the user with an unanswerable question: what does it mean to read from or write to an app I have no awareness of?  
 "I trust it will be fine" can be used as an answer, but doing so is not risk-free. It is possible to lower that risk by, when installing a new app, showing all permissions granted to other desks that affect the to-be-installed app.
 
 All of that assumes the `/desk.bill` file is a complete list of all agents that will be running on a desk. For scenarios where there are "optional" agents on a desk, the above becomes more nuanced. Arguably, in those cases, the relevant permissions should be optional, requested at runtime only once the optional agent has been observed to be running.
@@ -186,7 +187,7 @@ Permissions concerning agents on other ships should be presented generically, be
 
 ### Requesting Permissions
 
-Requesting permissions ahead-of-time improves both developer and user ergonomics: the developer never has to check permission status, and the user does not need to be prompted for those permissions after installing the app.
+Requesting permissions ahead-of-time improves both developer and user ergonomics: the developer never has to check permission status, and the user does not need to be prompted for those permissions after installing the app.  
 Requesting permissions dynamically grants users meaningful control over the behavior of the software they run, in practice letting them en- or disable features according to their level of trust in the software.
 
 ### Spider and Khan
@@ -199,6 +200,8 @@ Spider implements a "userspace within userspace". As such, if it wants to restri
 Userspace developers will need to specify the permissions which their agents require. Failure to do so will result in runtime crashes.
 
 xx summarize upgrade instructions for userspace devs
+
+xx gifts from old resources
 
 
 ## Security Considerations
@@ -226,7 +229,7 @@ There are many seemingly-narrow permissions that are functionally equivalent to 
 
 ### Desk Sources
 
-Changing the installation source of a desk for which permissions have been granted implies trusting the new source with all of the granted permissions. Revoking permissions when changing installation source may be excessive, but warning about this in installation UI could be sensible.
+Changing the installation source of a desk for which permissions have been granted implies trusting the new source with all of the granted permissions. Revoking permissions when changing installation source may be excessive, but warning about this in installation UI could be sensible.  
 Updating clay to support running off source desks directly (that is, running agents from a `[=ship =desk]` instead of a necessarily-local `desk`) would mitigate this, but such a change is outside the scope of this UIP.
 
 
