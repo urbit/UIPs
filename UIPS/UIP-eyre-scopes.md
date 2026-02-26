@@ -106,10 +106,10 @@ xx or 403 for posts, puts, etc?
 Eyre MUST serve the `/~/login` page exclusively on the root scope. To obtain a cookie for desk scopes, eyre MUST implement a `/~/holm` endpoint and use it in the following flow.
 
 1. A request to `/~/holm` comes in on the root scope. (Assume a validly authenticated request.) The URL has the shape of `/~/holm/[scope](target-url)`.
-2. Eyre generates a random temporary token, `tmp-token`, stores it in state along with the requester's session identifier, and sets a 30-second expiry timer.
+2. Eyre generates a random temporary token, `tmp-token`, stores it in state along with the requester's session identifier, and sets a 30-second expiry timer. (If the requester did not provide a session identifier, mint a new guest session.)
 3. Eyre serves a `307` "temporary redirect" to `//[scope].[hostname]/~/holm/[tmp-token][target-url]`.
 4. That request to `/~/holm` comes in on the desk scope.
-5. Eyre checks the `tmp-token` from the request URL against its state. If a match exists, it mints a new child session, with the matching session as its parent.
+5. Eyre checks the `tmp-token` from the request URL against its state. If a match exists, it removes the token from state and mints a new child session with the matching session as its parent.
 6. Eyre serves a `307` "temporary redirect" to the `target-url`, including a `set-cookie` header for the newly minted session.
 
 For requests with out-of-spec URL shapes, eyre MUST serve a `400` "bad request" response.
@@ -131,6 +131,8 @@ On POST requests, eyre MUST retrieve `scope` and `return` values from the reques
 If an `approve` value is present, eyre MUST mint a new session and serve a `303` "see other" redirect to the `return` value's URI, appending `?token=` followed by the minted session's identifier.  
 Else, eyre MUST serve a `303` "see other" redirect to the `return` value's URI, appending `?error=rejected`.
 
+Standalone clients SHOULD use `/~/auth` in place of `/~/login` whenever possible.
+
 ### IP address access
 
 Eyre MUST store a flag indicating whether it will respond to requests that have an IP address (rather than a domain name) in their `Host` header. This flag MUST be disabled by default.
@@ -149,7 +151,7 @@ Users SHOULD be warned that enabling the flag and accessing third party apps ove
 Eyre MUST support storing SSL certificates for multiple domains. Eyre MUST communicate these to the runtime in its `%set-config` gift. The runtime's `http.c` MUST apply the appropriate certificate based on the request's hostname.
 
 Eyre SHOULD implement a subscription endpoint for listening to changes to the set of known domains. ACME agent SHOULD listen to this endpoint and attempt automatic certificate setup for added domains.
-xx can't (generally) do wildcard certs, so, do we want to have it do this per-desk? if not, should remove this recommendation
+xx can't (generally) do wildcard certs because dns-01 only, so, do we want to have it do this per-desk? if not, should remove this recommendation
 
 ### Ancillary services
 
@@ -162,28 +164,27 @@ Hosting services SHOULD ensure they handle requests to subdomains appropriately.
 
 ## Rationale
 
-The approach taken here has its origin in [`origins.txt`](https://gist.github.com/Fang-/18ce946a2bb33bada3f10bdb3546bb55). Its description of the problem and reasoning towards this solution still applies. We opted for subdomains instead of ports to differentiate origins because outward-facing ports are limited in number, very difficult to support in hosting environments, and would require very extensive runtime changes.
+The approach taken here has its origin in [`origins.txt`](https://gist.github.com/Fang-/18ce946a2bb33bada3f10bdb3546bb55). That description of the problem and reasoning towards this solution still applies. We opted for subdomains instead of ports to differentiate origins because outward-facing ports are limited in number, very difficult to support in hosting environments, and would require very extensive runtime changes.
 
-xx secure cookie separation only possible by origin. cookie attributes alone (`Domain`, `Path`, CHIPS, and others) are not sufficient for isolating cookies
+Setting cookies from distinct origins is the only way to ensure browsers isolate the cookies in a secure way. `Set-Cookie` supports a number of attributes that provide different degrees of control over when and how cookies can be sent or read, but no combination of them is sufficient for isolation without origin separation.
 
-xx triple redirect simple, effective, fast, transparent
-xx tmp token is plenty safe, short-lived
+Cookies need to be served from their respective subdomains, but we do not want to make scopes authoritative over authentication sessions. Making them defer to the root scope's session gives us a clean hierarchy of sessions and enables logging out of all scopes.  
+The root scope needs to "legitimize" a subdomain cookie request. Passing a temporary authentication token in the URL is easy, reliable and effective. The redirects are transparent to the user and browsers do not store them in history. Even if they did, the short lifetimes and single-use nature of the temporary tokens help prevent exploitation.
 
-xx oauth-style auth is necessary for standalone clients so that user doesn't need to type +code into the client
+Adding an endpoint for OAuth-style authentication is an accommodation for standalone clients. Authenticating into root with `/~/login` continues to work but is ill-advised, and users should become wary of entering their `+code` anywhere outside of their own ship.
 
-xx assumption is browsers support `sub.localhost`
+Eyre considers `localhost` known by default because accessing a ship locally should always be valid. Firefox, Chrome and Brave seem to support subdomains for localhost without OS-side configuration.
 
-xx we keep the eyre binding namespace as a flat path-based mapping, instead of giving each desk its own namespace, to ensure that navigating to `/some-other-app` always works and ends up in the right place. important for cross-app linking
-
-xx eyre must "know" localhost by default because ...
+We keep the eyre binding namespace as a flat path-prefix mapping, instead of giving each desk its own namespace, to ensure that navigating to `/some-other-app-endpoint` continues to work as-is. Though it's uncommon, installing and runnnig desk distributions under non-standard names is possible, so namespacing the bindings would require cross-desk linking to do lookups and construct the target URL dynamically.
 
 ### Attempts at hiding subdomains
 
 Because of the UX impact of making subdomains visible to the user, we explored different approached for hiding the subdomains from the user. None of them worked out in practice. We briefly describe them below.
 
-xx considered iframes for hiding subdomains, but impossible because of browser security behavior: chrome and brave treat
+It is possible to hide the subdomains from the user by hiding them inside an iframe served at the root domain. While message passing between cross-origin frames is possible, some browsers (Brave, Chrome) treat the origin of the inner frame as that of the outer page for security checks. As a consequence, the inner frame cannot dynamicall set cookies for the subdomain it's being served from.  
+While the iframes approach would have delivered a convenient place to put "userchrome" or "launcher" UI, this presented additional compatibility challenges. For example, link preview fetchers would only retrieve the metadata of the outer page, not the inner frame.
 
-xx considered hiding subdomains through browser plugin, but that won't work on mobile web
+We briefly considered utilizing a browser plugin to manage authentication tokens, rewriting requests to the user's ship on the fly. While this approach seemed technically possible, mobile browsers offer very little plugin support. Supporting mobile web access is important, so we were forced to drop this approach.
 
 
 ## Backwards compatibility
@@ -191,23 +192,22 @@ xx considered hiding subdomains through browser plugin, but that won't work on m
 A common pattern for serving files from a desk to the client relies on the docket agent. This agent runs from the landscape desk. As a result, in the new model, all client files would be served under the landscape scope.  
 Desks will need to take responsibility for serving their own files. In addition to bespoke one-off solutions, generic file-serving software could be developed to facilitate this. (For example, [foo-fileserver](https://github.com/Fang-/suite/blob/wip/owntracks/app/foo-fileserver.hoon).) This is a good opportunity to return from glob-based file-serving to clay-based file-serving, now that tombstoning is real.
 
-xx setup docs will need to be updated. should we make a flowchart?
+The setup process changes slightly, so documentation will need to be updated. Localhost access continues to work for some browsers, but not all of them. If the user's browser doesn't support localhost subdomains, or if their ship is on a different machine on the local network, IP access mode is available. For setups on internet-accessible machines, documentation should recommend using the `*.arvo.network` service, and describe the required steps from configuring your own domain name if you have one.
 
-xx mobile clients could keep using +code auth, but they shouldn't
+For standalone clients, authentication using `/~/login` on the root scope continues to work as it has been, and userspace can be accessed through that scope. But requests to desk-specific resources require following redirects, and will always be behind three redirects if subdomain authentication cookies are not remembered. As such, it is strongly recommended to switch to using scoped authentication using credentials obtained through `/~/auth`.
 
-xx hosting environments might need to update their infra to support the subdomains
-
-xx ip mode is an out for self-hosted setups that cannot deal with domains/dns (primarily, ships on the local network)
+Hosting environments may need to update their infrastructure to support wildcard subdomains. Self-hosting software may need to do the same.
 
 
 ## Security considerations
 
-xx cookie exfiltration, browser dependency
-xx `SameSite` cookie attribute: `Strict` is best, but `Lax` would work too
+In the common case, we depend on the browser's ability to keep cookies isolated between different origins. Luckily browsers have years of experience with this. Care must still be taken around cross-site requests, and the `SameSite` cookie attribute should be considered carefully, but that is unchanged from the status quo.
 
-xx faking the oauth page, self-phishing
+There is nothing to be gained from "faking" the `/~/auth` page in phishing attempts. As is the status quo, users should take care to only type their `+code` into pages served by their ship.
 
-xx others? red-teaming effort?
+Using the new authentication endpoints over plain HTTP is vulnerable to man-in-the-middle attacks. But this holds for any and every endpoint and authentication method. We are no worse off, and there is nothing to be done about this. The (unrelated to this UIP) possibility of SSL certs for IP addresses should help improve this situation.
+
+xx red-teaming effort?
 
 
 ## Appendices
