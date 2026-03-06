@@ -16,7 +16,7 @@ In order to extend userspace permissions into HTTP contexts, eyre must provide s
 
 ## Status
 
-Draft UIP with some expansion remaining, but the essence of the spec is present. The Eyre Security Working Group is actively refining the implementation.
+The Eyre Security Working Group is actively refining the implementation as specified here. Core mechanism has been implemented, big remaining task is supporting multiple domains and their certificates. Work on ancillary services has not yet started.
 
 
 ## Motivation
@@ -24,8 +24,7 @@ Draft UIP with some expansion remaining, but the essence of the spec is present.
 Userspace permissions ([UIP-userperms](./UIP-userperms.md)) restricts the capabilities of agents per desk. However, agent code isn't the only place from which system interactions originate: eyre exposes HTTP endpoints that allow interacting with userspace. Eyre's authentication distinguishes between different ship identities, but otherwise treats every session as "root": any requested interaction gets performed unconditionally.  
 Giving eyre's authentication some form of desk provenance lets userspace permissions apply to HTTP interactions.
 
-xx rewrite
-Client code is generally served by desks themselves. Enabling permission checks on interactions from HTTP is necessary. However, given that most commonly all client code is accessed from the same domain, they all have access to the same cookies. (Even with `Http-Only` cookies, that don't allow the _value_ to be read out, those cookies can still be _sent_ with requests.) Giving each desk a unique cookie isn't enough. We must ensure those cookies remain isolated, that client code from one desk can't use the cookies from another desk.
+Client code is most commonly accessed in the browser, and served by desks themselves. This access usually happens at the same domain, letting client code from different desks access the same cookies. (Even with `Http-Only` cookies, that don't allow the _value_ to be read out, those cookies can still be _sent_ with requests.) Simply giving each desk a unique cookie provides provenance but is not secure. We must ensure those cookies remain isolated and cannot be leaked or extracted across desk boundaries.
 
 
 ## Specification
@@ -98,14 +97,13 @@ When sending interactions to gall, eyre MUST include the scope in its provenance
 ```
 
 If the scope of the request's authentication doesn't match the request's scope, the authentication MUST be considered invalid.  
-If invalid or no authentication is provided on a desk scope request, eyre MUST initiate [subdomain authentication](#subdomain-authentication) in response to the request by serving a `307` "temporary redirect". Eyre MUST NOT mint guest sessions for desk scope requests.  
-xx or 403 for posts, puts, etc?
+If invalid or no authentication is provided on a desk scope request, eyre MUST initiate [subdomain authentication](#subdomain-authentication) in response to the request by serving a `307` "temporary redirect". Eyre MUST NOT mint guest sessions for desk scope requests.
 
 ### Subdomain authentication
 
 Eyre MUST serve the `/~/login` page exclusively on the root scope. To obtain a cookie for desk scopes, eyre MUST implement a `/~/holm` endpoint and use it in the following flow.
 
-1. A request to `/~/holm` comes in on the root scope. (Assume a validly authenticated request.) The URL has the shape of `/~/holm/[scope](target-url)`.
+1. A request to `/~/holm` comes in on the root scope. The URL has the shape of `/~/holm/[scope](target-url)`.
 2. Eyre generates a random temporary token, `tmp-token`, stores it in state along with the requester's session identifier, and sets a 30-second expiry timer. (If the requester did not provide a session identifier, mint a new guest session.)
 3. Eyre serves a `307` "temporary redirect" to `//[scope].[hostname]/~/holm/[tmp-token][target-url]`.
 4. That request to `/~/holm` comes in on the desk scope.
@@ -144,18 +142,21 @@ If the flag is enabled, eyre MUST handle requests on IP addresses as per normal,
 - Every minted authentication session MUST have the root scope.
 - Requests to paths owned by a desk scope MUST respond directly, instead of redirecting to a subdomain.
 
+Regardless of flag state, eyre MUST continue handling requests on domain as normal without any behavioral changes.
+
 Users SHOULD be warned that enabling the flag and accessing third party apps over an IP address makes them exceedingly vulnerable to malicious software. Setup documentation SHOULD NOT recommend enabling the flag as part of normal setup procedure. For local machine setups, documentation SHOULD always instruct to visit `localhost`, never `127.0.0.1`.
 
 ### SSL certificates
 
 Eyre MUST support storing SSL certificates for multiple domains. Eyre MUST communicate these to the runtime in its `%set-config` gift. The runtime's `http.c` MUST apply the appropriate certificate based on the request's hostname.
 
-Eyre SHOULD implement a subscription endpoint for listening to changes to the set of known domains. ACME agent SHOULD listen to this endpoint and attempt automatic certificate setup for added domains.
-xx can't (generally) do wildcard certs because dns-01 only, so, do we want to have it do this per-desk? if not, should remove this recommendation
+Eyre SHOULD implement a subscription endpoint for listening to changes to the set of known domains.
 
 ### Ancillary services
 
 ACME agent SHOULD be updated to support negotiating SSL certificates for IP addresses.
+
+The `arvo.network` DNS service provider SHOULD be updated to set wildcard subdomain DNS entries for each ship (`*.sampel.arvo.network`), in addition to the existing ship domain entries. If it does so, the wildcard MUST point to the same location as the ship domain.
 
 The `arvo.network` DNS service provider SHOULD be updated to facilitate setting records for the DNS-01 ACME challenge type. DNS and ACME agents SHOULD be updated to make use of this.
 
@@ -171,7 +172,7 @@ Setting cookies from distinct origins is the only way to ensure browsers isolate
 Cookies need to be served from their respective subdomains, but we do not want to make scopes authoritative over authentication sessions. Making them defer to the root scope's session gives us a clean hierarchy of sessions and enables logging out of all scopes.  
 The root scope needs to "legitimize" a subdomain cookie request. Passing a temporary authentication token in the URL is easy, reliable and effective. The redirects are transparent to the user and browsers do not store them in history. Even if they did, the short lifetimes and single-use nature of the temporary tokens help prevent exploitation.
 
-Adding an endpoint for OAuth-style authentication is an accommodation for standalone clients. Authenticating into root with `/~/login` continues to work but is ill-advised, and users should become wary of entering their `+code` anywhere outside of their own ship.
+Adding an endpoint for OAuth-style authentication is an accommodation for standalone clients. Authenticating into root with `/~/login` continues to work but is ill-advised, and users should become wary of entering their `+code` anywhere outside of their own ship. Proper OAuth has many features which we do not need or are difficult to support in a personal server context, so we forego real compatibility.
 
 Eyre considers `localhost` known by default because accessing a ship locally should always be valid. Firefox, Chrome and Brave seem to support subdomains for localhost without OS-side configuration.
 
@@ -207,7 +208,7 @@ There is nothing to be gained from "faking" the `/~/auth` page in phishing attem
 
 Using the new authentication endpoints over plain HTTP is vulnerable to man-in-the-middle attacks. But this holds for any and every endpoint and authentication method. We are no worse off, and there is nothing to be done about this. The (unrelated to this UIP) possibility of SSL certs for IP addresses should help improve this situation.
 
-xx red-teaming effort?
+The design provided here and its implementation should get subjected to red-teaming before release.
 
 
 ## Appendices
@@ -220,7 +221,7 @@ url | session required? | root or all scopes? | description
 `/~/auth`    | y | root | oauth-like flow
 `/~/host`    | n | all  | host ship
 `/~/name`    | y | all  | authenticated identity
-`/~/login`   | n | root | login form & logout handling (xx retain?)
+`/~/login`   | n | root | login form & login handling
 `/~/logout`  | n | all  | logout handling
 `/~/eauth`   | y | root | cross-ship authentication
 `/~/channel` | y | all  | userspace interactions
