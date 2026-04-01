@@ -55,6 +55,7 @@ UIPs can be divided into the following categories:
 | [0134](./UIPS/UIP-0134.md) | Subsecond Timing Syntax   | ~lagrev-nocfep                 | Approved  | Standards |
 | [0135](./UIPS/UIP-0135.md) | Adjust @da format         | ~palfun-foslup                 | Approved  | Standards |
 | [0136](./UIPS/UIP-0136.md) | Comet Attestation         | ~hanfel-dovned, ~tinnus-napbus, ~bonbud-macryg, ~tondes-sitrym | Review | Standards |
+| [0137](./UIPS/UIP-0137.md) | Age Bracket Signals for App Installation | ~sitful-hatred | Draft | Standards |
 
 ## Background
 
