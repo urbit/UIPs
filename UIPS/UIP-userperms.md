@@ -55,7 +55,7 @@ Both gall and clay need to know the current permission state (required, requeste
 ### Interface and Types
 
 Clay MUST support granting and revoking permissions through a `%seal` task and requesting permissions through a `%pine` task.  
-To support userspace reactivity (and gall's syncing), clay MUST expose a kernel-style subscription endpoint for notifications about permission requests and updates through a `%ward` task, and closing of that subscription through a `%wink` task. Agents that want to use this MUST be granted the corresponding permission.
+To support userspace reactivity (and gall's syncing), clay MUST expose a kernel-style subscription endpoint for notifications about permission requests and updates through a `[%ward (unit ~)]` task. Agents that want to use this MUST be granted the corresponding permission.
 
 The type that describes a permission MUST allow for "scoping" if possible. That is to say, for example, a permission to read resources from a path namespace must be able to specify a path at _and below_ which read permission is to be granted. Or, a permission for interacting with a named resource must optionally specify the name of the resource, such that it allows access to either a specific resource, or all possible resources.
 
@@ -144,8 +144,7 @@ Developers should be taught and strongly encouraged to check permissions prior t
 
 Considering the possibility of building "app managers" in userspace, it is important for the kernel to expose permission information and management capabilities.
 
-xx kernel-style subscriptions follow established pattern, see examples
-xx example: %tire
+The kernel-style subscription (`%ward`) follows the pattern established by `%tire` and `%logs`, using a `(unit *)` for stopping or starting the subscription, optionally with some parameters. Because we (like its predecessors) don't have parameters, the type becomes `(unit ~)`.
 
 The permission type must allow scoping so that developers do not need to request permissions broader than what they will be using, and conversely such that a generic permission can be requested.  
 For example, no need to request permission to write to all of the files on a desk if you only want to update `/log.txt`. And conversely, no use specifying any path at all if the main feature revolves around editing arbitrary files.
