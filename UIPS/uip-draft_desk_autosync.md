@@ -327,8 +327,12 @@ since the sync layer converges under any deterministic canonical form.
 
 ## Reference Implementation
 
-Work in progress against `urbit/urbit` and `urbit/vere`. The implementation
-touches:
+Implemented and tested end-to-end:
+
+- Arvo: [urbit/urbit#7362](https://github.com/urbit/urbit/pull/7362)
+- runtime: [urbit/vere#1031](https://github.com/urbit/vere/pull/1031)
+
+The implementation touches:
 
 - `pkg/arvo/sys/lull.hoon` — `%wath` task; `%wath`/`%wend` gifts.
 - `pkg/arvo/sys/vane/clay.hoon` — auto-sync set in state (+ state version
