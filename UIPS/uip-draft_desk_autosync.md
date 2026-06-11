@@ -138,6 +138,11 @@ While a mount point is watched:
   before rewriting it; without a grace period, such saves propagate a
   transient deletion into the desk's revision history, with visible
   side effects (e.g. application reloads).
+- The runtime SHOULD periodically rescan watched mount points as a
+  backstop (RECOMMENDED order of 30s), since filesystem notification
+  mechanisms can drop events (e.g. inotify queue overflow or exhausted
+  watch descriptors). A backstop rescan of an unchanged tree produces no
+  event, per the requirement below.
 - The runtime MUST NOT inject a `%into` event whose change list is null.
   (This requirement applies to the `%dirk`-triggered scan path as well, and
   is a behavioral fix independent of auto-sync.)
