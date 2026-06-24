@@ -35,7 +35,7 @@ This update will network breach the existing few dozen Groundwire comets. This i
 
 ## Status
 
-An [in-progress implementation branch](https://github.com/gwbtc/urbit/compare/gw/next/kelvin/408...cyc/cc_) exists in the Groundwire foundation's urbit repo.
+An [in-progress implementation branch](https://github.com/gwbtc/urbit/compare/gw/next/kelvin/408...cyc/cc) exists in the Groundwire Foundation's urbit repo.
 
 ## Copyright
 
