@@ -23,11 +23,13 @@ In a nutshell, we can enforce that all Bitcoin comets do in fact attest to their
 
 ## Specification 
 
-Upon receiving a Suite C self-attestation packet, Ames needs to pass it to some validation agent to either accept it or reject it as a valid Urbit ID. The sending comet's tweaked networking key contains a `domain=@tas` corresponding to this agent.
+The key words "MUST", "MUST NOT", "REQUIRED", "SHALL", "SHALL NOT", "SHOULD", "SHOULD NOT", "RECOMMENDED", "NOT RECOMMENDED", "MAY", and "OPTIONAL" in this document are to be interpreted as described in RFC 2119 and RFC 8174.
 
-A mapping from domain to agent is set by passing an `%anex` task to Jael, which we introduce in this UIP (alongside tasks for deleting and modifying mappings). Upon installing a new PKI handler desk, its main agent will typically set this in `++on-init`.
+Upon receiving a Suite C self-attestation packet, Ames MUST pass it to some validation agent to either accept it or reject it as a valid Urbit ID. The sending comet's tweaked networking key MUST contain a `domain=@tas` corresponding to this agent.
 
-When Ames receives a Suite C self-attestation packet from an alien, it passes it to Jael via the newly-introduced `%writ` task. Jael then either dispatches it to the appropriate agent or nacks if the domain is non-existent. The agent then performs the validation and gives the new point's data to Jael as a `%fact`. When the sending ship tries to contact the receiving ship again, the receiving ship's Ames will see it in Jael and thus will establish normal contact.
+A mapping from domain to agent is set by passing an `%anex` task to Jael, which we introduce in this UIP (alongside tasks for deleting and modifying mappings). Upon installing a new PKI handler desk, its main agent SHOULD set this in `++on-init`.
+
+When Ames receives a Suite C self-attestation packet from an alien, it MUST pass it to Jael via the newly-introduced `%writ` task. Jael MUST then either dispatch it to the appropriate agent or nack if the domain is non-existent. The agent SHOULD then perform the validation and give the new point's data to Jael as a `%fact`. When the sending ship tries to contact the receiving ship again, the receiving ship's Ames will see it in Jael and thus will establish normal contact.
 
 ## Backwards Compatibility
 
