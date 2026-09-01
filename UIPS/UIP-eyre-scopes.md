@@ -99,18 +99,23 @@ When sending interactions to gall, eyre MUST include the scope in its provenance
 If the scope of the request's authentication doesn't match the request's scope, the authentication MUST be considered invalid.  
 If invalid or no authentication is provided on a desk scope request, eyre MUST initiate [subdomain authentication](#subdomain-authentication) in response to the request by serving a `307` "temporary redirect". Eyre MUST NOT mint guest sessions for desk scope requests.
 
+If invalid authentication is provided on a root scope request, eyre MUST (as was already the case) serve a `401` "unauthorized" with a `Set-Cookie` header that expires the provided cookie.
+
 ### Subdomain authentication
 
-Eyre MUST serve the `/~/login` page exclusively on the root scope. To obtain a cookie for desk scopes, eyre MUST implement a `/~/holm` endpoint and use it in the following flow.
+Eyre MUST serve the `/~/login` page exclusively on the root scope. To obtain a cookie for desk scopes, eyre MUST implement a `/~/holm/...` endpoint and use it in the following flow.
 
-1. A request to `/~/holm` comes in on the root scope. The URL has the shape of `/~/holm/[scope](target-url)`.
+1. A request to `/~/holm` comes in on the root scope. The URL has the shape of `/~/holm/sink/[scope](target-url)`.
 2. Eyre generates a random temporary token, `tmp-token`, stores it in state along with the requester's session identifier, and sets a 30-second expiry timer. (If the requester did not provide a session identifier, mint a new guest session.)
-3. Eyre serves a `307` "temporary redirect" to `//[scope].[hostname]/~/holm/[tmp-token][target-url]`.
-4. That request to `/~/holm` comes in on the desk scope.
+3. Eyre serves a `307` "temporary redirect" to `//[scope].[hostname]/~/holm/gain/[tmp-token][target-url]`.
+4. That request to `/~/holm/...` comes in on the desk scope.
 5. Eyre checks the `tmp-token` from the request URL against its state. If a match exists, it removes the token from state and mints a new child session with the matching session as its parent.
 6. Eyre serves a `307` "temporary redirect" to the `target-url`, including a `set-cookie` header for the newly minted session.
 
 For requests with out-of-spec URL shapes, eyre MUST serve a `400` "bad request" response.
+
+Eyre MAY implement a `/~/holm/jump(target-url)` endpoint. If a request to this endpoint comes in on a desk scope, eyre MUST redirect to `/~/holm/sink/[scope](target-url)` on the root scope. If a request to this endpoint comes in on the root scope, eyre SHOULD redirect to the `/~/login` page.  
+This endpoint enables the runtime to initiate subdomain authentication without needing to parse the current/target scope out of the request hostname, for which knowledge of known domains would be required.
 
 When a session with the root scope gets expired, all its "child" sessions MUST be expired along with it.
 
@@ -151,6 +156,12 @@ Users SHOULD be warned that enabling the flag and accessing third party apps ove
 Eyre MUST support storing SSL certificates for multiple domains. Eyre MUST communicate these to the runtime in its `%set-config` gift. The runtime's `http.c` MUST apply the appropriate certificate based on the request's hostname.
 
 Eyre SHOULD implement a subscription endpoint for listening to changes to the set of known domains.
+
+### Runtime authentication checks
+
+Eyre MUST include the scope of session tokens in its `%sessions` gift to the runtime. The runtime MUST require an appropriate scope when handling requests directly. To this end, eyre MUST include the originating desk alongside `$cache-entry`s and send them to the runtime in `/cache/[aeon]/[url]` scry responses.
+
+If scoped authentication is required, but the requester provides no authentication whatsoever, the runtime MAY redirect to `/~/holm/jump(request-url)` in an attempt to have the client obtain appropriate authentication.
 
 ### Ancillary services
 
