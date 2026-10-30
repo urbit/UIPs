@@ -11,12 +11,12 @@ created: 2026-02-25
 
 ## Abstract
 
-In order to extend userspace permissions into HTTP contexts, eyre must provide secure client provenance. We propose assigning desk scopes to authentication sessions, and isolating these sessions in browser contexts by assigning each desk its own subdomain. We reduce UX impact by automating subdomain authentication for browsers, and support OAuth-style authentication for standalone clients.
+In order to extend userspace permissions into HTTP contexts, eyre must provide secure client provenance. We propose assigning desk scopes to authentication sessions, and isolating these sessions in browser contexts by assigning each desk its own subdomain and making eyre carefully inspect browser-set request headers. We reduce UX impact by automating subdomain authentication for browsers, and support OAuth-style authentication for standalone clients.
 
 
 ## Status
 
-The Eyre Security Working Group is actively refining the implementation as specified here. Core mechanism has been implemented, big remaining task is supporting multiple domains and their certificates. Work on ancillary services has not yet started.
+The Gall 2026 working group has implemented the original version of this proposal and reviewed it for security. Defensiveness towards browser requests was severely lacking. The proposal as presented here is the second iteration and is scheduled for re-review and red-teaming.
 
 
 ## Motivation
@@ -24,7 +24,7 @@ The Eyre Security Working Group is actively refining the implementation as speci
 Userspace permissions ([UIP-userperms](./UIP-userperms.md)) restricts the capabilities of agents per desk. However, agent code isn't the only place from which system interactions originate: eyre exposes HTTP endpoints that allow interacting with userspace. Eyre's authentication distinguishes between different ship identities, but otherwise treats every session as "root": any requested interaction gets performed unconditionally.  
 Giving eyre's authentication some form of desk provenance lets userspace permissions apply to HTTP interactions.
 
-Client code is most commonly accessed in the browser, and served by desks themselves. This access usually happens at the same domain, letting client code from different desks access the same cookies. (Even with `Http-Only` cookies, that don't allow the _value_ to be read out, those cookies can still be _sent_ with requests.) Simply giving each desk a unique cookie provides provenance but is not secure. We must ensure those cookies remain isolated and cannot be leaked or extracted across desk boundaries.
+Client code is most commonly accessed in the browser, and served by desks themselves. This access usually happens at the same domain, forcing client code from different desks to re-use the same cookie. (Even with `Http-Only` cookies, that don't allow the _value_ to be read out, those cookies can still be _sent_ with requests.) Simply giving each desk a subdomain with a unique cookie provides provenance but is not secure: browsers send cookies based on the _target_ domain. To prevent that kind of escalation, eyre must avoid respecting cookies in illicit cross-origin scenarios.
 
 
 ## Specification
@@ -39,6 +39,8 @@ Eyre MUST store a set of "known domains", for which it expects to handle incomin
 
 Per the RFC2616 specification, HTTP requests must have a `Host` header. Eyre already reads this and, for requests coming from the localhost, respects the `Forwarded` header's `Host` field if present. If this process does not deliver a target hostname for the request, eyre MUST serve a `400` bad request response, again per RFC2616. Eyre MUST support cases where the `Host` field contains an IP address rather than a domain name. The bulk of this specification assumes a domain name, for the special handling of IP addresses see [the IP address access section](#ip-address-access).
 
+Eyre MUST only respect the `Forwarded` header if a `Via` header is also present.
+
 Eyre MUST define a "**scope**" as `(unit desk)`, where `~` represents "root", and a value represents a specific desk scope. Eyre MUST deduce the target scope for a request based on the domain name provided in its `Host` header in the following way:
 1. If the domain name is a known domain, the target scope is root.
 2. If the domain name is more than one segment long, and removing the smallest segment (i.e. `ex.ample.org` -> `ample.org`) results in a known domain, the target scope is the smallest segment interpreted as a desk name (i.e. `ex`).
@@ -47,15 +49,49 @@ Eyre MUST define a "**scope**" as `(unit desk)`, where `~` represents "root", an
 If a request does not have a target scope, eyre MUST serve a `421` "misdirected request" response.
 
 Eyre MUST define a "**path owner**" as `(unit desk)`, where `~` represents "eyre", and a value represents a specific desk. Eyre MUST deduce the path owner for a request based on the path of its URL in the following way:
-1. Resolve the URL to its binding.
-2. If the binding maps to a `%gen` action, the path owner is the desk the generator comes from.
-3. If the binding maps to an `%app` action, the path owner is the desk the agent is running from.
-4. Else, the path owner is eyre.
+1. If the URL is in a reserved namespace (`/~/*` or `/_~_/*`), the path owner is eyre.
+2. If the URL has a cache entry, the path owner is the desk that created the entry.
+3. If the binding maps to a `%gen` action, the path owner is the desk the generator comes from.
+4. If the binding maps to an `%app` action, the path owner is the desk the agent is running from.
+5. Else, the path owner is eyre.
 
-If the path owner is not eyre, and the path owner does not match the scope, eyre MUST redirect the request to the domain name which would resolve to the appropriate scope using a `307` "temporary redirect" response.  
+If the path owner is not eyre, and the path owner does not match the scope, eyre MUST redirect the request to the domain name which would resolve to the appropriate scope using a `303` "see other" response.  
 (For example, `ship.io/myapp` to `mydesk.ship.io/myapp`, or `mydesk.ship.io/~/login` to `ship.io/~/login`.)
 
 If the previous checks have not served a response, eyre MUST proceed to handle the request's authentication.
+
+#### Authentication acceptability
+
+Before reading [authentication](#authentication) from the request, eyre decides whether the request is allowed to provide authentication in the first place.
+
+There are three outcomes:
+- `%respect`: eyre respects the provided authentication (if any), handling the request as normal.
+- `%drop`: eyre ignores any provided authentication, but still handles the request, never initiating subdomain authentication but minting a very short-lived guest session if necessary.
+- `%reject`: eyre rejects the request wholesale, serving a `403` "forbidden" response, with the rejection reason in the response body.
+
+Define the following terms:
+- secure: a request is "secure" if it came in over HTTPS.
+- safe: a request is "safe" if the HTTP method is GET or HEAD. Other methods are "unsafe".
+- soft-origin: a request is "soft-origin" if either no `Origin` is provided, or it is exact-origin.
+- exact-origin: a request is "exact-origin" if an `Origin` header is provided and matches the target hostname.
+
+Broadly, soft-origin requests have their authentication respected, cross-origin safe requests have their authentication dropped, and cross-origin unsafe requests get rejected.  
+More precisely, eyre MUST determine the appropriate outcome based on the following criteria:
+1. If an `Authorization` header is provided, eyre MUST always `%respect` it and ignore any `Cookie` headers.
+2. If the request is not secure:
+   1. If the request is safe, eyre MUST `%drop` if an `Origin` is provided but it is not exact-origin. Otherwise, eyre MUST `%respect`. (See security note below.)
+   2. If the request is unsafe, eyre MUST only `%respect` if the request is exact-origin. Otherwise, eyre MUST `%reject`.
+3. If the request is secure:
+   1. If the request provides a `Sec-Fetch-Site: same-origin` header, eyre MUST only `%respect` if the request is either safe and soft-origin, or unsafe and exact-origin, and `%reject` otherwise.
+   2. Otherwise, if the request is unsafe, eyre MUST `%reject`.
+   3. Otherwise, (if the request is safe,) eyre MUST only `%respect` if the `Sec-Fetch-Site` header is either absent, `none`, `same-site` or `cross-site` _and_ the `Sec-Fetch-Mode` header is `navigate` _and_ no `Origin` header is provided _and_ the `Sec-Fetch-Dest` is allowed (see below). Otherwise, eyre MUST `%drop`.
+      - The `Sec-Fetch-Dest` is allowed if it is `document`, or if all of the following are true: the `Dest` is either `iframe` or `frame`, and `Sec-Fetch-Site` is not `none` and the `Referer` header points to a known subdomain whose desk has the `%eyre %embed` permission.
+
+If the result is `%respect`, eyre MUST read authentication in the following way:
+1. If an `Authorization` header is present, attempt to read a session identifier (`@uv` atom literal) from the `Bearer` token. Only produce the session if it exists, is not expired, and has a non-root scope.
+2. Otherwise, if any `Cookie` headers are present, attempt to read the cookie value with the appropriate key from it. (See [cookie keys](#cookie-keys--attributes) below.) Only produce the session if only one value is provided for that key, its session exists, and is not expired.
+
+If the request is a CORS preflight request (OPTIONS method, Origin header) request, eyre MUST generate a response automatically. If the request would be `%reject`, eyre MUST serve a `403` response. Otherwise, eyre MUST allow the request's stated origin, method, headers, and allow credentials using the appropriate `Acess-Control-Allow-*` headers. Eyre MAY allow the same if the `Origin` is approved in its CORS registry. If the request would be `%drop`, the `Access-Control-Allow-Credentials` header MUST be omitted.
 
 #### Authentication
 
@@ -97,7 +133,7 @@ When sending interactions to gall, eyre MUST include the scope in its provenance
 ```
 
 If the scope of the request's authentication doesn't match the request's scope, the authentication MUST be considered invalid.  
-If invalid or no authentication is provided on a desk scope request, eyre MUST initiate [subdomain authentication](#subdomain-authentication) in response to the request by serving a `307` "temporary redirect". Eyre MUST NOT mint guest sessions for desk scope requests.
+If invalid or no authentication is provided on a desk scope request, eyre MUST initiate [subdomain authentication](#subdomain-authentication) in response to the request. Eyre MUST NOT mint guest sessions for desk scope requests. (`%drop` scenarios excepted.)
 
 If invalid authentication is provided on a root scope request, eyre MUST (as was already the case) serve a `401` "unauthorized" with a `Set-Cookie` header that expires the provided cookie.
 
@@ -105,21 +141,32 @@ If invalid authentication is provided on a root scope request, eyre MUST (as was
 
 Eyre MUST serve the `/~/login` page exclusively on the root scope. To obtain a cookie for desk scopes, eyre MUST implement a `/~/holm/...` endpoint and use it in the following flow.
 
-1. A request to `/~/holm` comes in on the root scope. The URL has the shape of `/~/holm/sink/[scope](target-url)`.
-2. Eyre generates a random temporary token, `tmp-token`, stores it in state along with the requester's session identifier, and sets a 30-second expiry timer. (If the requester did not provide a session identifier, mint a new guest session.)
-3. Eyre serves a `307` "temporary redirect" to `//[scope].[hostname]/~/holm/gain/[tmp-token][target-url]`.
-4. That request to `/~/holm/...` comes in on the desk scope.
-5. Eyre checks the `tmp-token` from the request URL against its state. If a match exists, it removes the token from state and mints a new child session with the matching session as its parent.
-6. Eyre serves a `307` "temporary redirect" to the `target-url`, including a `set-cookie` header for the newly minted session.
+0. A request comes in on a desk scope, and it either targets `/~/holm/jump` or eyre determines new subdomain authentication is needed. Eyre serves a `303` "see other" to `/~/holm/sink/[scope](/target-url)` on the root scope.
+1. That request to `/~/holm/sink/[scope](/target-url)` comes in on the root scope.
+2. Eyre generates a random temporary token, `tmp-token`, stores it in state along with the requester's session identifier, the target scope and url, and sets a 30-second expiry timer. (If the requester did not provide a session identifier, mint a new guest session.)
+3. Eyre serves a `303` "see other" to `//[scope].[hostname]/~/holm/gain/[tmp-token]`.
+4. That request to `/~/holm/gain/[tmp-token]` comes in on the desk scope.
+5. Eyre checks the `tmp-token` from the request URL against its state. If a match exists and the stored scope matches the request's, it removes the token from state and mints a new child session with the matching session as its parent.
+6. Eyre serves a `303` "see other" to the stored `target-url`, including a `set-cookie` header for the newly minted session.
 
-For requests with out-of-spec URL shapes, eyre MUST serve a `400` "bad request" response.
+For requests with out-of-spec URL shapes, mismatching or expired state, or other unexpected situations, eyre MUST serve a `400` "bad request" response and refuse to mint any new sessions.
 
-Eyre MAY implement a `/~/holm/jump(target-url)` endpoint. If a request to this endpoint comes in on a desk scope, eyre MUST redirect to `/~/holm/sink/[scope](target-url)` on the root scope. If a request to this endpoint comes in on the root scope, eyre SHOULD redirect to the `/~/login` page.  
-This endpoint enables the runtime to initiate subdomain authentication without needing to parse the current/target scope out of the request hostname, for which knowledge of known domains would be required.
+If a request to `/~/holm/jump` comes in on the root scope, eyre SHOULD redirect to the `/~/login` page.  
+This endpoint enables the runtime to initiate subdomain authentication without needing to parse the current/target scope out of the request hostname, for which knowledge of known domains would be required. (But the runtime may still need that knowledge for other request handling behavior.)
 
 When a session with the root scope gets expired, all its "child" sessions MUST be expired along with it.
 
+### Cookie keys & attributes
+
+Eyre MUST prefix its cookie key with `__Host-` and include the following attributes: `Path=/; Secure; SameSite=Lax;`.
+
+Eyre SHOULD use a different cookie key (without the `__Host-` prefix) with different attributes (without `Secure`) over insecure connections.
+
+Before handing requests off to userspace, eyre MUST strip its own cookies (and `Authorization` header) from the request.
+
 ### Scoped OAuth-style authentication
+
+This preliminary spec is currently undergoing redesign.
 
 Eyre MUST support OAuth-style authentication at the `/~/auth` endpoint. This endpoint MUST only be accessible on the root scope. If the request is not authenticated as the host ship, eyre MUST redirect to `/~/login`.
 
@@ -159,9 +206,27 @@ Eyre SHOULD implement a subscription endpoint for listening to changes to the se
 
 ### Runtime authentication checks
 
-Eyre MUST include the scope of session tokens in its `%sessions` gift to the runtime. The runtime MUST require an appropriate scope when handling requests directly. To this end, eyre MUST include the originating desk alongside `$cache-entry`s and send them to the runtime in `/cache/[aeon]/[url]` scry responses.
+Eyre MUST include the scope of session tokens in its `%sessions` gift to the runtime.  
+Eyre MUST include known domains and the IP mode flag in its `%set-config` gift to the runtime.  
+Eyre MUST include the originating desk alongside `$cache-entry`s and send them to the runtime in `/cache/[aeon]/[url]` scry responses.
 
-If scoped authentication is required, but the requester provides no authentication whatsoever, the runtime MAY redirect to `/~/holm/jump(request-url)` in an attempt to have the client obtain appropriate authentication.
+The runtime MUST serve cached responses only on hostnames corresponding to their scope, excepting IP access if enabled. If a request's URL could be served by a cached response for a different scope, the runtime MAY serve a 303 "see other" response redirecting to the same URL on the appropriate subdomain.
+
+If scoped authentication is required, but the requester provides no authentication whatsoever, the runtime MAY redirect to `/~/holm/jump(/request-url)` in an attempt to have the client obtain appropriate authentication.
+
+### Response headers
+
+Eyre MUST include security-relevant response headers when serving responses, under the following conditions:
+- `Cross-Origin-Resource-Policy: same-origin` always, unless the provided response already has a CORP header.
+- `Origin-Agent-Cluster: ?1` always.
+- `Content-Security-Policy: upgrade-insecure-requests` when serving over HTTPS.
+  - Eyre MAY forego adding this header if the provided response has an `X-Eyre-No-UIR` header.
+- `Content-Security-Policy: frame-ancestors 'none'` on all eyre-internal HTML page responses.
+- `Cross-Origin-Opener-Policy: same-origin` on all eyre-internal HTML page responses.
+- `Cache-Control: no-store` on all responses that eyre adds a `Set-Cookie` header to.
+  - Eyre SHOULD be conservative about sending `Set-Cookie` and avoid doing so if the cookie is far away from expiry.
+
+Eyre MUST also apply these headers to cache entries.
 
 ### Ancillary services
 
@@ -173,12 +238,19 @@ The `arvo.network` DNS service provider SHOULD be updated to facilitate setting 
 
 Hosting services SHOULD ensure they handle requests to subdomains appropriately. They SHOULD NOT rewrite URLs in ways that result in all requests to a ship having the same origin from a client's perspective.
 
+Reverse proxies MUST NOT set the `Via` header without removing `Forwarded` headers from the request. Reverse proxies SHOULD set the `Via` header and _overwrite_ the `Forwarded` header.
+
 
 ## Rationale
 
-The approach taken here has its origin in [`origins.txt`](https://gist.github.com/Fang-/18ce946a2bb33bada3f10bdb3546bb55). That description of the problem and reasoning towards this solution still applies. We opted for subdomains instead of ports to differentiate origins because outward-facing ports are limited in number, very difficult to support in hosting environments, and would require very extensive runtime changes.
+The approach taken here has its origin in [`origins.txt`](https://gist.github.com/Fang-/18ce946a2bb33bada3f10bdb3546bb55). That description of the problem and reasoning towards this solution still apply, but miss some crucial details. We opted for subdomains instead of ports to differentiate origins because outward-facing ports are limited in number, very difficult to support in hosting environments, and would require very extensive runtime changes.
 
-Setting cookies from distinct origins is the only way to ensure browsers isolate the cookies in a secure way. `Set-Cookie` supports a number of attributes that provide different degrees of control over when and how cookies can be sent or read, but no combination of them is sufficient for isolation without origin separation.
+Setting cookies from distinct origins is by itself not sufficient to ensure browsers isolate the cookies in a secure way. `Set-Cookie` supports a number of attributes that help control whether cookies can be set by or sent to third parties, but these don't _fully_ isolate across origins. Notably `SameSite` lets you isolate by _site_, which is different from _origin_. `bar.com` and `foo.bar.com` are considered the same _site_, unless `bar.com` is on the public-suffix list.
+
+In cross-origin scenarios, the browser will (usually) send enough information for a server to detect the fact that the request is cross-origin. Only so-called "[forbidden request headers](https://developer.mozilla.org/en-US/docs/Glossary/Forbidden_request_header)" can be trusted, other headers could have been forged by JavaScript.
+- `Origin` will be present for every cross-origin request (except GET/HEAD requests that explicitly opt out of reading the content).
+- On secure connections, the `Sec-Fetch-*` headers provide a comprehensive specification of the conditions under which the request is being made and how the response will be used.
+- The `Referer` header will be present in many scenarios, but here is only used for permission checking in iframe embedding scenarios.
 
 Cookies need to be served from their respective subdomains, but we do not want to make scopes authoritative over authentication sessions. Making them defer to the root scope's session gives us a clean hierarchy of sessions and enables logging out of all scopes.  
 The root scope needs to "legitimize" a subdomain cookie request. Passing a temporary authentication token in the URL is easy, reliable and effective. The redirects are transparent to the user and browsers do not store them in history. Even if they did, the short lifetimes and single-use nature of the temporary tokens help prevent exploitation.
@@ -188,6 +260,11 @@ Adding an endpoint for OAuth-style authentication is an accommodation for standa
 Eyre considers `localhost` known by default because accessing a ship locally should always be valid. Firefox, Chrome and Brave seem to support subdomains for localhost without OS-side configuration.
 
 We keep the eyre binding namespace as a flat path-prefix mapping, instead of giving each desk its own namespace, to ensure that navigating to `/some-other-app-endpoint` continues to work as-is. Though it's uncommon, installing and runnnig desk distributions under non-standard names is possible, so namespacing the bindings would require cross-desk linking to do lookups and construct the target URL dynamically.
+
+Note that none of the protections for cross-origin cookie usage account for non-browser clients. Such client could forge `Origin`, `Sec-Fetch-Dest` and other such headers. However, they would still need to obtain a valid authentication token for the scope they want to (ab)use. That alone is sufficient protection.  
+(In other words, cross-origin cookie usage is a vulnerability in the scopes model that is unique to browser clients.)
+
+The `Forwarded` header must only be respected if a `Via` header is also present, because browser-side scripts can control the `Forwarded` header, but not the `Via` header. This gives some guarantee that there is indeed a proxy eyre can trust with providing the `Forwarded` details.
 
 ### Attempts at hiding subdomains
 
@@ -219,7 +296,21 @@ There is nothing to be gained from "faking" the `/~/auth` page in phishing attem
 
 Using the new authentication endpoints over plain HTTP is vulnerable to man-in-the-middle attacks. But this holds for any and every endpoint and authentication method. We are no worse off, and there is nothing to be done about this. The (unrelated to this UIP) possibility of SSL certs for IP addresses should help improve this situation.
 
+We make the assumption (because browsers do the same) that GET and HEAD method requests are "safe", as in, they do not result in server-side state mutation. Userspace handling of HTTP requests should affirm this assumption in order to remain secure in the context of unsecured no-`Origin` requests.
+
+We presently make no demands on the runtime to protect its diagnostic endpoints (`/~_~` slog, spin) beyond the existing local authentication check. Developers are expected to not use slogs for displaying sensitive information to the user. However, even code on the base desk (most notably, `/lib/dbug`) violates this.
+
 The design provided here and its implementation should get subjected to red-teaming before release.
+
+### Unsecured HTTP
+
+Browser behavior and feature support differs between secure (HTTPS) vs insecure (plain HTTP) contexts. (Note that `localhost` is often considered secure even if accessed over plain HTTP.) Some of the security measures described simply cannot be supported over unsecured HTTP. In particular:
+- The `__Host-` cookie prefix guarantees it is only sent to the host that originally set it, "as close as can be to treating the origin as a security boundary". But it can only be used in secure contexts. In insecure we cannot get that guarantee.
+- The `Sec-Fetch-*` headers (really, all `Sec-*` headers) are only sent over HTTPS. This means that in insecure contexts we are fully dependent on the `Origin` header. If it does not get sent, we cannot do better than assume the request is not cross-origin (and thus respect the provided authentication). This is usually accurate, but not exactly always. If it gets sent but is `null`, we _always_ either drop or reject the authentication, notably preventing authenticated cross-origin media loading.
+
+Even if insecure contexts had feature parity with secure ones, the unencrypted transport protocol is assumed "owned by default" due to inherent vulnerability to men in the middle. That may not be a concern in local network access scenarios, but the browser behavior threat remains.
+
+In conclusion, to avoid compromising security when using urbit in the browser, users must set up a domain name and obtain SSL certs for it.
 
 
 ## Appendices
