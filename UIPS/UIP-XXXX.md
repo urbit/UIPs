@@ -37,42 +37,39 @@ In its first release, Mach SHALL be a minimal interface to a TCP driver in the r
 
 ### Interface
 
-Mach depends on a new `$fief` type (an IP address or list of domain names) which is included in `gwbtc/urbit`'s Lull and is upstreamed for this PR.
+Agents name their connections, as they name Lick ports. A `$name` is a path, and Gall prefixes it with the agent's name, so two agents can use the same name without clashing. Mach addresses a connection's peer with a `$addr`, an IPv4 or IPv6 address and a port:
 
 ```hoon
-+$  fief
-  $%  [%turf p=(list turf) q=@ud]                       ::  domains
-      [%if p=@if q=@ud]                                 ::  IPv4
-      [%is p=@is q=@ud]                                 ::  IPv6
++$  addr
+  $%  [%if p=@if q=@ud]                                 ::  ipv4
+      [%is p=@is q=@ud]                                 ::  ipv6
   ==
 ```
 
-The `%turf` case lists several domains because a user may bind to more than one, e.g. `.arvo.network`, `.startram.io`, and their own `.sampel-palnet.computer`. Service providers for one or more of these domains may be unavailable at any given time. Given multiple domains, Mach's driver will attempt to resolve all of them concurrently (see Runtime).
+Mach does not resolve domain names. An agent must resolve a domain to an address first (see Rationale).
 
 #### Tasks, gifts
 
-An outgoing TCP connection MAY close for a number of reasons. A `$wye` namespaces those reasons, and Gall agents MAY branch on error conditions with `?-(-.wye ...)` or `?=([%tls %certificate] wye)`.
+An outgoing TCP connection MAY close for a number of reasons. A `$wye` namespaces those reasons, and Gall agents MAY branch on error conditions with `?-(-.wye ...)` or `?=([%peer %dead] wye)`.
 
 ```hoon
 ++  mach  ^?
   |%
+  +$  addr
+    $%  [%if p=@if q=@ud]                               ::  ipv4
+        [%is p=@is q=@ud]                               ::  ipv6
+    ==
+  +$  name  path
   ::  $wye: why a connection closed
   ::  by category, then cause
   ::
   +$  wye
     $%  $:  %connect                                    ::  never opened
             $=  p
-            $?  %invalid                                ::  malformed $fief
-                %unresolved                             ::  no domain resolved
-                %refused                                ::  every address failed
+            $?  %invalid                                ::  malformed $addr
+                %taken                                  ::  name in use
+                %refused                                ::  connect failed
                 %timeout                                ::  not open in time
-        ==  ==
-        $:  %tls                                        ::  tls failed
-            $=  p
-            $?  %invalid                                ::  invalid domain
-                %certificate                            ::  failed verification
-                %handshake                              ::  failed handshake
-                %decode                                 ::  bad tls records
         ==  ==
         $:  %peer                                       ::  peer ended it
             $=  p
@@ -99,30 +96,32 @@ An outgoing TCP connection MAY close for a number of reasons. A `$wye` namespace
     $%  $>(%born vane-task)                             ::  new unix process
         $>(%trim vane-task)                             ::  trim state
         $>(%vega vane-task)                             ::  report upgrade
-        [%close ~]                                      ::  close connection
-        [%send =octs]                                   ::  send bytes
-        [%connect secure=? =fief]                       ::  connect to address
-        [%opened id=@ud p=(unit turf)]                  ::  opened this domain
-        [%closed id=@ud p=wye]                          ::  closed because...
-        [%received id=@ud =octs]                        ::  received bytes
+        [%close =name]                                  ::  close connection
+        [%send =name =octs]                             ::  send bytes
+        [%connect =name =addr]                          ::  connect to address
+        [%opened id=@ud]                                ::  vere opens
+        [%closed id=@ud p=wye]                          ::  vere closes
+        [%received id=@ud =octs]                        ::  vere receives bytes
     ==
   ::
   +$  gift
-    $%  [%connected p=(unit turf)]                      ::  opened, via turf
-        [%received =octs]                               ::  received bytes
-        [%closed p=wye]                                 ::  connection closed
-        [%connect id=@ud secure=? =fief]                ::  vere, open connection
+    $%  [%connected =name]                              ::  opened
+        [%received =name =octs]                         ::  received bytes
+        [%closed =name p=wye]                           ::  connection closed
+        [%connect id=@ud =addr]                         ::  vere, open connection
         [%send id=@ud =octs]                            ::  vere, send bytes
         [%close id=@ud]                                 ::  vere, close connection
     ==
   --
 ```
 
+Every gift to an agent carries the connection's name. Only the duct that opened a connection MAY `%send` on it or `%close` it; Mach MUST ignore these tasks from any other duct. A `%connect` on a name already open MUST close with `[%connect %taken]` and leave the connection open. Mach maps each name to a numeric id for the driver, so the driver never sees names.
+
 #### Scries
 
-* `/ma/connections`: list open connections
-* `/md/owner/<connection>`: the duct that opened this connection
-* `/mu/<connection>`: does this connection exist
+* `/ma/connections`: list the names of open connections
+* `/md/owner/<name>`: the duct that opened this connection
+* `/mu/<name>`: does this connection exist
 
 ### Lifecycle
 
@@ -138,7 +137,7 @@ The driver MUST enforce the following constraints:
 * `%received` events MUST carry no more than 1 MiB
 * The outgoing queue MUST be capped at 64 MiB, closing the connection with `[%local %overflowed]` on overflow
 * When the incoming queue reaches 64 MiB, the driver MUST stop reading from the socket until Arvo has drained it to 32 MiB, leaving flow control to TCP
-* Outgoing connection attempts MUST have a timeout of 30 seconds, covering DNS, TCP connect, and the TLS handshake
+* Outgoing connection attempts MUST time out after 30 seconds, closing with `[%connect %timeout]`
 * On `%close`, the driver SHALL stop delivering received bytes, flush the outgoing queue, and close with `[%close %done]`, or with `[%close %timeout]` after a 30 second drain limit
 * The driver MUST specify TCP keepalive with hard-coded timing applied consistently on every host platform: 120 seconds idle before the first probe, 10 seconds between probes, and 6 unanswered probes before closing with `[%peer %dead]`
 * The driver MUST close with `[%peer %dead]` when sent data stays unacknowledged for 180 seconds, on every host platform; the host platform MAY close such a connection sooner
@@ -147,9 +146,7 @@ The keepalive timing is an upper bound. If a Gall agent needs faster detection, 
 
 The above constraints protect from resource exhaustion, make Arvo and Vere behavior consistent across host platforms, and place constraints on what Gall agents can do with TCP. Conversely, the driver SHALL run with `TCP_NODELAY` on, such that batching is left to the agents and peers that understand whichever protocol they’re communicating over.
 
-The driver SHALL connect with libuv, following RFC 8305 (Happy Eyeballs) if the agent passes a list of domains. One 30-second budget covers every attempt to connect to every domain; if every lookup and attempt fails sooner, the driver closes with `[%connect %refused]` if any domain resolved, else `[%connect %unresolved]`.
-
-For a `secure=&` connection, it SHALL hand the connected socket to h2o and call `h2o_socket_ssl_handshake()` with the domain that connected, and SHALL verify that the certificate names that domain. The Mach driver's dependency on h2o is an interim step, used just for TLS. It hides the read error code, so on a TLS connection a reset or dead peer closes with `[%peer %done]`, not `[%peer %reset]` or `[%peer %dead]`. Driving OpenSSL over libuv directly would fix this and give every connection one read and write path, and this will replace h2o once the security implications are more well understood.
+The driver SHALL connect with libuv to the one address in the `$addr`. If the connect fails before the timeout, the driver closes with `[%connect %refused]`.
 
 The key words "MUST", "MUST NOT", "REQUIRED", "SHALL", "SHALL NOT", "SHOULD", "SHOULD NOT", "RECOMMENDED", "NOT RECOMMENDED", "MAY", and "OPTIONAL" in this document are to be interpreted as described in RFC 2119 and RFC 8174.
 
@@ -177,7 +174,7 @@ See pull requests [`urbit/urbit#7437`](https://github.com/urbit/urbit/pull/7437)
 
 Mach’s initial release will only allow Gall agents to connect to outside servers, never the other way around. The runtime driver’s tasks are only accepted from the `//mach` duct. We defer to the Gall Working Group’s userspace permissions system to manage which agents and desks can pass tasks to Mach.
 
-Mach supports TLS in its first release. The driver uses Vere’s h2o dependency for TLS, requires TLS 1.2 or later, and verifies certificates against the certificates embedded in Vere, the same Iris uses for HTTPS. TLS connections (`secure=&`) are only valid if the given `$fief` is a `%turf`, and Mach rejects other `%connect` tasks with `[%tls %invalid]`.
+An early draft of Mach supported TLS in a case where the agent tried to `%connect` to a domain, but domain support was removed as it was not strictly necessary for our intended use-cases. TLS support would require the Mach driver to either depend on h2o or run OpenSSL over libuv, which would introduce more security considerations.
 
 As with Iris, any Gall agent can reach any TCP endpoint the host OS can, including loopback. This is a userspace security question and out-of-scope for this UIP.
 
