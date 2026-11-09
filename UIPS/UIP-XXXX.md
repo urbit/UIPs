@@ -33,7 +33,7 @@ Mach may later be extended to serve incoming connections, which would let TCP-ba
 
 ## Specification
 
-In its first release, Mach SHALL be a minimal interface to a TCP driver in the runtime.
+In its first release, Mach SHALL be a minimal interface to a Mach driver in the runtime.
 
 ### Interface
 
@@ -75,7 +75,7 @@ An outgoing TCP connection MAY close for a number of reasons. A `$wye` namespace
             $=  p
             $?  %done                                   ::  peer closed cleanly
                 %reset                                  ::  reset or r/w failed
-                %dead                                   ::  keepalive timeout
+                %dead                                   ::  peer unresponsive
         ==  ==
         $:  %close                                      ::  userspace ended it
             $=  p
@@ -131,16 +131,22 @@ On `%born`, Mach MUST drop all outgoing connections, as Iris and Lick do, and te
 
 ### Runtime
 
-In its first release the Mach vane is a minimal interface with the TCP driver. All congestion control, bindings, timeouts, etc. MUST be specified as hard-coded constants in the driver. The driver MUST limit the size of each receive event, and maintain per-connection queues where one `%received` gift is in transit per connection until Arvo has completed it. If Vere crashes before the event is written to disk, the event is lost, and on restart `%born` closes the connection with `[%local %reborn]`, so an agent never sees an interrupted bytestream.
+In its first release the Mach vane is a minimal interface with the Mach driver. Mach's driver MUST defer to Gall agents to frame incoming messages according to the protocol they implement. As such, Mach cannot frame incoming packets into complete messages on behalf of the agent. All congestion control, bindings, timeouts, etc. MUST be specified as hard-coded constants in the driver.
 
-The driver MUST enforce the following constraints:
+The driver MUST limit the size of each receive event, and maintain per-connection queues (one incoming, one outgoing) where one `%received` gift is in transit per connection until the agent has processed it, and up to 16 MiB is queued to go out. These queues abstract over host platforms' own TCP buffers, which vary per platform, per configuration, and may dynamically resize per-connection.
+
+If Vere crashes before the event is written to disk, the event is lost, and on restart `%born` closes the connection with `[%local %reborn]`, so an agent never sees an interrupted bytestream.
+
+The driver MUST enforce the following constraints. Most of these were taken from the TCP sidecar that Mach replaces, and others were picked to be generous enough for userspace to implement protocols within. These constraints are simple constants that MAY be tweaked in response to the needs of userspace developers.
+
 * `%received` events MUST carry no more than 1 MiB
-* The outgoing queue MUST be capped at 64 MiB, closing the connection with `[%local %overflowed]` on overflow
-* When the incoming queue reaches 64 MiB, the driver MUST stop reading from the socket until Arvo has drained it to 32 MiB, leaving flow control to TCP
+* When the incoming queue reaches 1 MiB, the driver MUST stop reading from the socket until a `%received` event takes the queue, leaving further flow control to TCP
+* The outgoing queue MUST be capped at 16 MiB, closing the connection with `[%local %overflowed]` on overflow
 * Outgoing connection attempts MUST time out after 30 seconds, closing with `[%connect %timeout]`
 * On `%close`, the driver SHALL stop delivering received bytes, flush the outgoing queue, and close with `[%close %done]`, or with `[%close %timeout]` after a 30 second drain limit
 * The driver MUST specify TCP keepalive with hard-coded timing applied consistently on every host platform: 120 seconds idle before the first probe, 10 seconds between probes, and 6 unanswered probes before closing with `[%peer %dead]`
 * The driver MUST close with `[%peer %dead]` when sent data stays unacknowledged for 180 seconds, on every host platform; the host platform MAY close such a connection sooner
+* The driver MUST close with `[%peer %dead]` when it holds unsent bytes and none of them reach the host OS for 180 seconds, so a peer that stops reading cannot hold a connection open
 
 The keepalive timing is an upper bound. If a Gall agent needs faster detection, or its protocol requires its own ping (Bitcoin P2P, MQTT, IRC, WebSocket), the agent MAY send pings over the connection and `%close` it early when they go unanswered.
 
@@ -178,7 +184,7 @@ An early draft of Mach supported TLS in a case where the agent tried to `%connec
 
 As with Iris, any Gall agent can reach any TCP endpoint the host OS can, including loopback. This is a userspace security question and out-of-scope for this UIP.
 
-The TCP driver’s hard-coded resource limits protect the ship from DoS attacks. Building this vane out into a TCP server will require more security concerns around ports, auth, etc. which are out-of-scope for this UIP.
+The Mach driver's hard-coded constraints protect from incoming DoS attacks by limiting how much memory a remote peer can allocate on the host OS: around 2 MiB per connection (1 MiB in the driver, 1 MiB in the host kernel's TCP module) with a 180-second timeout. Mach also limits outgoing connections to 16 MiB queues, but like Iris it does not prevent a Gall agent from opening as many connections as it likes. The 16 MiB limit is generous enough to enable many use-cases (e.g. Bitcoin blocks) but will overflow in the case where a malicious or broken agent spams the connection with outgoing messages. Once userspace permissions are implemented, it is up to the user to be careful about which desks they allow to use Mach to allocate resources on their machine. These kinds of questions around resource allocation on the host machine will be the main concern in any effort to upgrade Mach to a general-purpose TCP client/server vane.
 
 ## Copyright
 
