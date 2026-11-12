@@ -144,9 +144,10 @@ The driver MUST enforce the following constraints. Most of these were taken from
 * The outgoing queue MUST be capped at 16 MiB, closing the connection with `[%local %overflowed]` on overflow
 * Outgoing connection attempts MUST time out after 30 seconds, closing with `[%connect %timeout]`
 * On `%close`, the driver SHALL stop delivering received bytes, flush the outgoing queue, and close with `[%close %done]`, or with `[%close %timeout]` after a 30 second drain limit
+* On `%close` before the connection opens, the driver SHALL close with `[%close %done]` at once if the outgoing queue is empty; otherwise it SHALL finish connecting, flush and close as above without giving `%connected`, or close with the `%connect` cause if the connect fails
 * The driver MUST specify TCP keepalive with hard-coded timing applied consistently on every host platform: 120 seconds idle before the first probe, 10 seconds between probes, and 6 unanswered probes before closing with `[%peer %dead]`
 * The driver MUST close with `[%peer %dead]` when sent data stays unacknowledged for 180 seconds, on every host platform; the host platform MAY close such a connection sooner
-* The driver MUST close with `[%peer %dead]` when it holds unsent bytes and none of them reach the host OS for 180 seconds, so a peer that stops reading cannot hold a connection open
+* The driver MUST write outgoing bytes to the host OS in slices of at most 64 KiB, and MUST close with `[%peer %dead]` when a slice has not finished after 180 seconds, so a peer that stops reading cannot hold a connection open
 
 The keepalive timing is an upper bound. If a Gall agent needs faster detection, or its protocol requires its own ping (Bitcoin P2P, MQTT, IRC, WebSocket), the agent MAY send pings over the connection and `%close` it early when they go unanswered.
 
