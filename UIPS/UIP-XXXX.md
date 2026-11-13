@@ -131,16 +131,12 @@ On `%born`, Mach MUST drop all outgoing connections, as Iris and Lick do, and te
 
 ### Runtime
 
-In its first release the Mach vane is a minimal interface with the Mach driver. Mach's driver MUST defer to Gall agents to frame incoming messages according to the protocol they implement. As such, Mach cannot frame incoming packets into complete messages on behalf of the agent. All congestion control, bindings, timeouts, etc. MUST be specified as hard-coded constants in the driver.
-
-The driver MUST limit the size of each receive event, and maintain per-connection queues (one incoming, one outgoing) where one `%received` gift is in transit per connection until the agent has processed it, and up to 16 MiB is queued to go out. These queues abstract over host platforms' own TCP buffers, which vary per platform, per configuration, and may dynamically resize per-connection.
-
-If Vere crashes before the event is written to disk, the event is lost, and on restart `%born` closes the connection with `[%local %reborn]`, so an agent never sees an interrupted bytestream.
+In its first release the Mach vane is a minimal interface with the Mach driver. Mach's driver MUST defer to Gall agents to frame incoming messages according to the protocol they implement. As such, Mach cannot frame incoming packets into complete messages on behalf of the agent. If Vere crashes before the event is written to disk, the event is lost, and on restart `%born` closes the connection with `[%local %reborn]`, so an agent never sees an interrupted bytestream.
 
 The driver MUST enforce the following constraints. Most of these were taken from the TCP sidecar that Mach replaces, and others were picked to be generous enough for userspace to implement protocols within. These constraints are simple constants that MAY be tweaked in response to the needs of userspace developers.
 
-* `%received` events MUST carry no more than 1 MiB
-* When the incoming queue reaches 1 MiB, the driver MUST stop reading from the socket until a `%received` event takes the queue, leaving further flow control to TCP
+* `%received` events MUST carry no more than 4 MiB
+* The driver MUST NOT read from the socket while a `%received` event is in transit, leaving flow control to TCP
 * The outgoing queue MUST be capped at 16 MiB, closing the connection with `[%local %overflowed]` on overflow
 * Outgoing connection attempts MUST time out after 30 seconds, closing with `[%connect %timeout]`
 * On `%close`, the driver SHALL stop delivering received bytes, flush the outgoing queue, and close with `[%close %done]`, or with `[%close %timeout]` after a 30 second drain limit
@@ -154,6 +150,16 @@ The keepalive timing is an upper bound. If a Gall agent needs faster detection, 
 The above constraints protect from resource exhaustion, make Arvo and Vere behavior consistent across host platforms, and place constraints on what Gall agents can do with TCP. Conversely, the driver SHALL run with `TCP_NODELAY` on, such that batching is left to the agents and peers that understand whichever protocol they’re communicating over.
 
 The driver SHALL connect with libuv to the one address in the `$addr`. If the connect fails before the timeout, the driver closes with `[%connect %refused]`.
+
+#### Queues
+
+Early drafts of the Mach driver maintained two "queues" per connection, for incoming and outgoing bytes. The idea behind this was to abstract over platform- and machine-specific TCP behavior for more consistent cross-platform performance, but in testing it was decided that this system's performance characteristics were much more salient.
+
+Removing the queue system entirely and relying on libuv's 64 KiB read buffer made the driver more than 10x slower during benchmarking with the `flood.hoon` thread and a TCP server on the same macOS machine. Removing the incoming per-connection queues but maintaining a 1 MiB read buffer and setting `SO_RCVBUF` to 1 MiB simplified the driver with effectively no slowdown. Increasing the maximum size of the `%received` event from 1 MiB to 4 MiB enabled a ~3x speedup on the same test. Increasing the maximum size to 16 MiB showed no performance improvement on the old queue system.
+
+The motivation behind the current design is that Arvo events are the most expensive part of this pipeline, so the driver reads with a 4 MiB buffer and asks the host for a 4 MiB `SO_RCVBUF` to deliver a stream in the fewest, biggest events possible. The host can grant less: Linux caps `SO_RCVBUF` at `net.core.rmem_max`, about 208 KiB, but the sysadmin can raise this cap manually.
+
+The Mach driver MUST maintain a queue of outgoing bytes that the host machine has not yet taken, since Arvo has already done the work of committing the `%send` event to the log. This queue MAY be as big as 16 MiB per connection, and Gall agents MAY send `%send` events of any size within this limit.
 
 The key words "MUST", "MUST NOT", "REQUIRED", "SHALL", "SHALL NOT", "SHOULD", "SHOULD NOT", "RECOMMENDED", "NOT RECOMMENDED", "MAY", and "OPTIONAL" in this document are to be interpreted as described in RFC 2119 and RFC 8174.
 
@@ -185,7 +191,7 @@ An early draft of Mach supported TLS in a case where the agent tried to `%connec
 
 As with Iris, any Gall agent can reach any TCP endpoint the host OS can, including loopback. This is a userspace security question and out-of-scope for this UIP.
 
-The Mach driver's hard-coded constraints protect from incoming DoS attacks by limiting how much memory a remote peer can allocate on the host OS: around 2 MiB per connection (1 MiB in the driver, 1 MiB in the host kernel's TCP module) with a 180-second timeout. Mach also limits outgoing connections to 16 MiB queues, but like Iris it does not prevent a Gall agent from opening as many connections as it likes. The 16 MiB limit is generous enough to enable many use-cases (e.g. Bitcoin blocks) but will overflow in the case where a malicious or broken agent spams the connection with outgoing messages. Once userspace permissions are implemented, it is up to the user to be careful about which desks they allow to use Mach to allocate resources on their machine. These kinds of questions around resource allocation on the host machine will be the main concern in any effort to upgrade Mach to a general-purpose TCP client/server vane.
+The Mach driver's hard-coded constraints protect from incoming DoS attacks by limiting how much memory a remote peer can allocate on the host OS: around 8 MiB per connection (one 4 MiB event in transit, and up to 4 MiB in the host's receive buffer) with a 180-second timeout. Mach also limits outgoing connections to 16 MiB queues, but like Iris it does not prevent a Gall agent from opening as many connections as it likes. The 16 MiB limit is generous enough to enable many use-cases (e.g. Bitcoin blocks) but will overflow in the case where a malicious or broken agent spams the connection with outgoing messages. Once userspace permissions are implemented, it is up to the user to be careful about which desks they allow to use Mach to allocate resources on their machine. These kinds of questions around resource allocation on the host machine will be the main concern in any effort to upgrade Mach to a general-purpose TCP client/server vane.
 
 ## Copyright
 
